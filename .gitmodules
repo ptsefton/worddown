@@ -1,0 +1,6 @@
+[submodule "tools/showsource/jszip"]
+	path = tools/showsource/jszip
+	url = /opt/schtml/jszip/
+[submodule "tools/showsource/microdatajs"]
+	path = tools/showsource/microdatajs
+	url = /opt/schtml/microdatajs/
