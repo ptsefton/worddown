@@ -1,0 +1,35 @@
+
+.showdata-decoration {
+
+	border-top:2px solid blue;
+	border-right:2px solid blue;
+	
+}
+
+.showsource-decoration {
+	padding-left: 10px;
+	padding-right: 10px;
+	padding-top: 10px;
+	padding-bottom: 10px;
+
+	border-top:1px dashed red;
+	border-left:1px dashed red;
+	border-right:1px dashed red;
+	border-bottom:1px dashed red;
+}
+
+
+.showmicrodata {
+	color: white;
+	background-color: blue;
+}
+
+.showsource {
+	color: white;
+	background-color: red;	
+}	
+
+
+
+
+
