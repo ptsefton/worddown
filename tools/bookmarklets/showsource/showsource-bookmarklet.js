@@ -9,14 +9,14 @@
  * Released under the Creative Commons Attribution 3.0 Unported License,
  * as defined here: http://creativecommons.org/licenses/by/3.0/
  *
- *  <a href="javascript:(function(){var head=document.getElementsByTagName('head')[0],script=document.createElement('script');script.type='text/javascript';script.src='http://jischtml5.googlecode.com/git/tools/bookmarklets/showsource/showsource-bookmarklet.js?' + Math.floor(Math.random()*99999);head.appendChild(script);})(); void 0">Word2HTML5</a>
+ *  <a href="javascript:(function(){var head=document.getElementsByTagName('head')[0],script=document.createElement('script');script.type='text/javascript';script.src='http://jischtml5.googlecode.com/git/tools/bookmarklets/showsource/showsource-bookmarklet.js';head.appendChild(script);})(); void 0">Show data/source LOCAL</a>
  * Adapted by Peter Sefton
  * MicrodataJS can be obtained from here: https://gitorious.org/microdatajs/ 
  * And jszip from here: https://github.com/Stuk/jszip.git
  */
 
 
-var host = "http://jischtml5.googlecode.com/git/tools/showsource/";
+var host = "http://tools.scholarlyhtml.org/showsource/";
 window.bookmarklet = function(opts){fullFunc(opts)};
  
 // These are the styles, scripts and callbacks we include in our bookmarklet:

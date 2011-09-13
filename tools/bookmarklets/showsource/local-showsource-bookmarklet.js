@@ -9,7 +9,7 @@
  * Released under the Creative Commons Attribution 3.0 Unported License,
  * as defined here: http://creativecommons.org/licenses/by/3.0/
  *
- *  <a href="javascript:(function(){var head=document.getElementsByTagName('head')[0],script=document.createElement('script');script.type='text/javascript';script.src='http://localhost:8001/local-showsource-bookmarklet.js?' + Math.floor(Math.random()*99999);head.appendChild(script);})(); void 0">Word2HTML5</a>
+ *  <a href="javascript:(function(){var head=document.getElementsByTagName('head')[0],script=document.createElement('script');script.type='text/javascript';script.src='http://localhost:8001/local-showsource-bookmarklet.js?' + Math.floor(Math.random()*99999);head.appendChild(script);})(); void 0">Show data/source</a>
  * THIS VERSION IS FOR TESTING - ASSUMES YOU HAVE A WEBSERVER SERVING THE jishtml5 directory - eg 
  * 	cd /opt/schtml/jischtml5/
  *	sudo python -m SimpleHTTPServer 8001

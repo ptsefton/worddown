@@ -4,13 +4,10 @@
 	function removeUI(node) {
 		node.find("#toolbar, .showSource, .showMicrodata").detach();
 		node.find("body").removeAttr("style");
-		//node.find("div.showdata-decoration *").unwrap();
+		
 		node.find("*[class]").andSelf().each(function(){
-			console.log("actual at first	 " + jQ(this).attr("class"));
 			cleanClass = jQ(this).attr("class").replace(/ *show(source|data)-decoration/g, "");
-			console.log("clean: " + cleanClass);
 			jQ(this).attr("class", cleanClass);
-			console.log("actual " + jQ(this).attr("class"));
 			if (jQ(this).attr("class") === "") {
 				jQ(this).removeAttr("class");
 			}
@@ -53,7 +50,6 @@
                
 	        //Copy all the attributes to a new element
 		jQ.each(elCopy.get(0).attributes, function(i, att) {
-			console.log("copying" + att.name);
 			wrapEl.attr(att.name, att.value);
 		});
 		wrapEl.wrap("<div></div>")
@@ -113,7 +109,6 @@
 			
 		 }
 		 el.wrap("<div></div>");	
-		 console.log(el.parent().get(0).outerHTML); 	
 	  	 var jsonText = jQ.microdata.json(el.parent().items(), function(o) { return JSON.stringify(o, undefined, 2); }); //
 	  	 showCode(jsonText);
 	}
