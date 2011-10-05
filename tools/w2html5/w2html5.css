@@ -1,0 +1,57 @@
+
+body {
+	padding-left: 150px;
+	width: 65%;
+}
+
+
+article {
+	padding-top: 30px;	
+}
+	
+
+section {
+	padding-left: 3px;
+	padding-right: 3px;
+	padding-top: 3px;
+	padding-bottom: 3px;
+}
+
+
+#paragraphify, #headingDemote, #headingPromote {
+	color: #FF0000;
+}
+
+h1 #h1, h2 #h2, h3 #h3, h4 #h4, h5 #h5 {
+	color: #888888;
+	}
+
+
+.toolbar {
+	border-top:1px solid red;
+	border-left:1px solid red;
+	border-right:1px solid red;
+	font-size: small;
+	display: block;
+	width: 100%;
+	
+}
+
+.more {
+	border-top:1px solid red;
+	border-left:1px solid red;
+	border-right:1px solid red;
+	font-size: small;
+	display: block;
+	width: 100%;
+	position:fixed;
+	left:100px;
+	top: 0px;
+	
+}
+.more span {
+	color: #888888;
+	font-size: large;
+	padding-left: 50px;
+	}
+
