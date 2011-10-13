@@ -35,7 +35,7 @@ function word2HML5Factory(jQ) {
     classNames = {};
 	word2html = {};
 	config = {};
-        config.preMatch = /(courier)|(monospace)/i;
+    config.preMatch = /(courier)|(monospace)/i;
 	config.bibMatch = /MsoBibliography/i;
 	config.headingMatches = [
 		[/H(ead)?(ing)? ?1.*/i ,2],
@@ -82,9 +82,6 @@ function word2HML5Factory(jQ) {
 
 		function nestingNeeded() {
 			//Test whether current left=margin indent means we should add some nesting
-			console.log("current" + state.currentIndent);
-			console.log("stack " + state.indentStack);
-			console.log("top " + state.indentStack[state.indentStack.length-1]);
 			return(state.currentIndent > state.indentStack[state.indentStack.length-1]);
 		
 		}
@@ -133,13 +130,16 @@ function word2HML5Factory(jQ) {
 		function popState() {
 			state.indentStack.pop();
 			state.elementStack.pop();
-			console.log("popping: " + state.indentStack);
 		}
 		state.popState = popState;
 
 		function popHeadingState() {
-			state.headingLevelStack.pop();
-			state.headingContainerStack.pop();
+		    if (state.headingLevelStack.length > 1) {
+				state.headingLevelStack.pop();
+				state.headingContainerStack.pop();
+				console.log(state.headingContainerStack);
+			}
+			
 	 		state.indentStack = [state.indentStack[0]];
 			state.elementStack = [state.getHeadingContainer()];
 		}
@@ -155,15 +155,10 @@ function word2HML5Factory(jQ) {
 
 
 		function pushHeadingState(el) {
-			head = state.headingLevel
-			
+			head = state.headingLevel;
 			state.headingLevelStack.push(head);
-			
-		
 			state.getHeadingContainer().append(el);
 			state.headingContainerStack.push(el);
-			
-			
 			state.indentStack = [state.indentStack[0]];
 			state.elementStack = [el];
 		}
@@ -214,14 +209,15 @@ function word2HML5Factory(jQ) {
 		jQ(element).removeAttr("class");
 	}
    	function processparas() {
-	  //TODO - recurse into tables
 
 	  //Always wrap carefully
 	  var container = jQ("<article itemscope='itemscope' itemtype='http://schema.org/ScholarlyArticle'></article>")	   
 	  processpara(jQ("body > *"), container);
-      //Don't need a containing element for table cell contents
-	  processpara(jQ("td > *"));
-	  processpara(jQ("th > *"));
+      //TODO: get rid of this div
+	  jQ("td, th").each(function() {
+		 processpara(jQ(this).find("*"), jQ('this'));
+	  });
+	
         }
 
   function removeLineBreaks(text) {
@@ -240,8 +236,9 @@ function word2HML5Factory(jQ) {
 			classs = classNames[classs];
 		}
 		el.attr("data-class", classs);
-		//TODO fix this by looking up class names properly
+		
 		if (classs.search(/-itemprop-/) > -1) {
+		    console.log("ITEMPROP" + classs);
 			el.attr("itemprop",classs.replace(/.*-itemprop-/, ""));
 		}
 		if ( classs.match(config.bibMatch)) {
@@ -341,8 +338,10 @@ function word2HML5Factory(jQ) {
 		
 
 	type = jQ(this).attr("data-type");
+	jQ(this).removeAttr("data-type")
 	headingLevel = jQ(this).attr("data-headingLevel");
-	listType = jQ(this).attr("data-listType");
+	jQ(this).removeAttr("data-headingLevel");
+	jQ(this).removeAttr("data-listType");
 
 	if (index == 0)  {
 		//When in tables currentContainer is not defined so this is harmless
@@ -671,7 +670,7 @@ function word2HML5Factory(jQ) {
 
   function removeMsoTableFormatting(el) {
         
-        el.wrap("<div></div>");
+    el.wrap("<div></div>");
 	el2 = el.parent();
 	el2.find("*[style]").each( function () {
 		
@@ -693,28 +692,24 @@ function word2HML5Factory(jQ) {
    }
 
    function convert() {
-    //TODO - make this a wee bit smarter :)
-    jQ("o\\:p, p:empty, span:empty,  meta, object").remove();
-	jQ("br, hr").parent().remove();
-	jQ("p:empty, span:empty").remove();
-	jQ("p:empty, span:empty").remove();
-	jQ("p:empty, span:empty").remove();
-	jQ("p:empty, span:empty").remove();
+    jQ("o\\:p, meta, object").remove();
+	jQ("hr").parent().remove();
+	while (jQ("p:empty, span:empty").length) {
+		jQ("p:empty, span:empty").remove();
+	}
 	
 	jQ("p[class^='MsoToc']").remove();
 	
-	//Extract the style info
+	//Extract the style info to make a lookup table for classes
 	styleInfo = jQ("style").text();
-	 var re = /p\.(\w+)[^{]*[{]mso-style-name:\s*(.+);/g;
-	 var match = re.exec(styleInfo);
+	var re = /p\.(\w+)[^{]*[{]mso-style-name:\s*(.+);/g;
+	var match = re.exec(styleInfo);
 	while (match != null) {
 		// matched text: match[0]
 		// match start: match.index
 		classNames[match[1]] = match[2].replace("\\","").replace(/"/,"");
-		console.log(match[1]);
 		match = re.exec(styleInfo);
 	}
-	console.log(classNames);
 	//Start by string-processing MSO markup into something we can read and reloading
 	if (jQ("article").length) {
 		return ; //Don't run twice
@@ -861,15 +856,14 @@ function word2HML5Factory(jQ) {
 
 			
 		
-		
 		jQ(this).remove();
 
 	});
+	var unwantedSpans = "span[class='SpellE'], span[class='GramE'], span[style], span[data]";
+	while (jQ(unwantedSpans).length) {
+		jQ(unwantedSpans).each(function(i) {jQ(this).replaceWith(jQ(this).html())});
+	}
 
-	jQ("span[class='SpellE'], span[class='GramE'], span[style], span[data]").each(function(i) {jQ(this).replaceWith(jQ(this).html())});
-
-      
-	
       
 	 	
    }
@@ -877,7 +871,7 @@ function word2HML5Factory(jQ) {
    word2html.config = config;
   
    if (typeof chrome === 'undefined' ||  typeof chrome.extension === 'undefined')  {
-	logoURL = "http://tools.scholarlyhtml.org/w2html5/w2html5ext/WordDownBackground.png";
+	logoURL = "http://tools.scholarlyhtml.org/w2html5/WordDownBackground.png";
 	}
    else {
 		logoURL = chrome.extension.getURL('logo-Xalon-ext.png');
