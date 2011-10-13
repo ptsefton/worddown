@@ -16,14 +16,14 @@
  */
 
 
-var host = "http://tools.scholarlyhtml.org/showsource/";
+var host = "http://tools.scholarlyhtml.org/w2html5/";
 window.bookmarklet = function(opts){fullFunc(opts)};
  
 // These are the styles, scripts and callbacks we include in our bookmarklet:
 window.bookmarklet({
  
-    css : [host + "showsource.css"],
-    js  : [host + 'jszip/jszip.js', host + 'microdatajs/lib/json2.js',host + 'microdatajs/jquery.microdata.js', host + 'microdatajs/jquery.microdata.json.js', host + 'showsource.js'],    
+    css : [host + "W3C-WD.css", host + "w2html5.css"],
+    js  : [host + 'w2html5.js'], 
     jqpath : 'http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js', 
     ready : function(){
 	 	converter = word2HML5Factory($);
