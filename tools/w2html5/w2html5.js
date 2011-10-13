@@ -23,7 +23,7 @@ COPYRIGHT Peter Malcolm Sefton 2011
 
 
 _get = function(url, callback) {
-  console.log("sending get");
+   
   chrome.extension.sendRequest({action:'get',url:url}, callback);
 }
 
@@ -32,17 +32,19 @@ _get = function(url, callback) {
 
 
 function word2HML5Factory(jQ) {
-
+    classNames = {};
 	word2html = {};
 	config = {};
         config.preMatch = /(courier)|(monospace)/i;
 	config.bibMatch = /MsoBibliography/i;
 	config.headingMatches = [
-		[/^H(ead)?(ing)? ?1.*/i , "<h2>", 3],
-		[/^H(ead)?(ing)? ?2.*/i , "<h3>", 4],
-		[/^H(ead)?(ing)? ?3.*/i , "<h4>", 5],
-		[/^H(ead)?(ing)? ?4.*/i , "<h5>", 6],
-		[/^(mso)?title/i, "<h1>", 2]
+		[/H(ead)?(ing)? ?1.*/i ,2],
+		[/H(ead)?(ing)? ?2.*/i ,3],
+		[/H(ead)?(ing)? ?3.*/i ,4],
+		[/H(ead)?(ing)? ?4.*/i ,5],
+		[/title/i, 1],
+		[/subtitle/i,  2]
+		
 	]		
 	
         function hackFixProperty(prop) {
@@ -60,18 +62,14 @@ function word2HML5Factory(jQ) {
 	}
 
 
-	function stateFactory(topLevelContainer) {
-
-
-		 //Make the assumption Normal has zero indent
-		  //TODO work out zero indent from Normal style (and deal with negative indents?)
-		var state = {};
-		state.indentStack = [0]; //indents in px
+	function stateFactory(topLevelContainer, leastIndent) {
+      	var state = {};
+		state.indentStack = [leastIndent]; //indents in px
 	 	state.elementStack = [topLevelContainer]; //elements
-		state.headingLevelStack = [1]; //integers
+		state.headingLevelStack = [0]; //integers
 		state.headingContainerStack = [topLevelContainer]; //elements
 		state.headingLevel = 1;
-		state.currentIndent = 0;
+		state.currentIndent = leastIndent;
 		function setCurrentIndent(indent) {
 			state.currentIndent = indent;
 		}
@@ -84,6 +82,9 @@ function word2HML5Factory(jQ) {
 
 		function nestingNeeded() {
 			//Test whether current left=margin indent means we should add some nesting
+			console.log("current" + state.currentIndent);
+			console.log("stack " + state.indentStack);
+			console.log("top " + state.indentStack[state.indentStack.length-1]);
 			return(state.currentIndent > state.indentStack[state.indentStack.length-1]);
 		
 		}
@@ -132,19 +133,21 @@ function word2HML5Factory(jQ) {
 		function popState() {
 			state.indentStack.pop();
 			state.elementStack.pop();
+			console.log("popping: " + state.indentStack);
 		}
 		state.popState = popState;
 
 		function popHeadingState() {
 			state.headingLevelStack.pop();
 			state.headingContainerStack.pop();
-	 		state.indentStack = [0];
+	 		state.indentStack = [state.indentStack[0]];
 			state.elementStack = [state.getHeadingContainer()];
 		}
 		state.popHeadingState = popHeadingState;
 
 
 		function pushState(el) {
+			 
 			state.indentStack.push(state.currentIndent);
 			state.elementStack.push(el);
 		}
@@ -161,7 +164,7 @@ function word2HML5Factory(jQ) {
 			state.headingContainerStack.push(el);
 			
 			
-			state.indentStack = [0];
+			state.indentStack = [state.indentStack[0]];
 			state.elementStack = [el];
 		}
 		state.pushHeadingState = pushHeadingState;
@@ -175,6 +178,8 @@ function word2HML5Factory(jQ) {
 			//Deal with MMDs        
                         
 			//<!--[if supportFields]>
+			//var IEdeclaration = /<\?.*?>/g;
+			//doc = doc.replace(IEdeclaration, "");
 			var endComment = /<\!(--)?\[endif]--*>/g;
 			var endCommentReplace = "</span>";
 			doc = doc.replace(endComment, endCommentReplace);
@@ -184,32 +189,6 @@ function word2HML5Factory(jQ) {
 			startCommentReplace = "<span class='mso-conditional' data='$1'>";
 			
 			doc = doc.replace(startComment, startCommentReplace);
-		
-
-        		
-			
-			
-
-			//Ordinary conditional comment
-			//var comment = /<\!--\[(.*?)\]--\>/g;
-			//commentReplace = "xxxxxxxxxxxx";
-			//doc = doc.replace(startComment, "");
-
-                         
-		/*
-	
-		      
-			var startMMD = /<\!\[(.*?)\]\>/g;
-			//startMMDReplace = "<span title='$1'/>";
-			doc = doc.replace(startMMD, "");
-
-
-		
-			var endMMD = /<\!\[endif\]>/g;
-			//endMMDReplace = "<span title='endif'/>";
-			doc = doc.replace(endMMD, "");
-
-		*/
 
 			//This is a rare special case, seems to be related to equations
 			var wrapblock = /<o:wrapblock>/g;
@@ -219,7 +198,7 @@ function word2HML5Factory(jQ) {
 			var endwrapblock = /<\/o:wrapblock>/g;
 			//endwrapblockreplace = "<span title='end-wrapblock' ><!-- --></span>";
 			doc = doc.replace(endwrapblock, "");
-
+            // 
 		    
 			return doc;	
 
@@ -239,8 +218,8 @@ function word2HML5Factory(jQ) {
 
 	  //Always wrap carefully
 	  var container = jQ("<article itemscope='itemscope' itemtype='http://schema.org/ScholarlyArticle'></article>")	   
-          processpara(jQ("body > *"), container);
-          //Don't need a containing element for table cell contents
+	  processpara(jQ("body > *"), container);
+      //Don't need a containing element for table cell contents
 	  processpara(jQ("td > *"));
 	  processpara(jQ("th > *"));
         }
@@ -253,230 +232,237 @@ function word2HML5Factory(jQ) {
 	return text.replace(/(\r\n|\n|\r)/gm,"\\n");
   }
 
-   function processpara(nodeList, container) {
-      var state = stateFactory(container);
-      nodeList.each(
-	    
-	    function (index) {
-		var type = "p";
-                var tag = null;
-		if (index == 0)  {
-			jQ("body").prepend(state.getCurrentContainer());
-                        
-		}	
-		//Table? Add it and get out
-		if (jQ(this).get(0).nodeName === 'TABLE') {
-			state.getCurrentContainer().append(jQ(this));
+   function getType(el) {
+		
+		el.attr("data-type", "p");
+		classs =  String(el.attr("class"));
+		if (classs in classNames) {
+			classs = classNames[classs];
+		}
+		el.attr("data-class", classs);
+		//TODO fix this by looking up class names properly
+		if (classs.search(/-itemprop-/) > -1) {
+			el.attr("itemprop",classs.replace(/.*-itemprop-/, ""));
+		}
+		if ( classs.match(config.bibMatch)) {
+				el.attr("data-type", "bib");
+				return;
+		}
+		//HTML headings
+		var nodeName = el.get(0).nodeName;
+		if (nodeName.search(/H\d/) == 0) {
+			el.attr("data-type", "h");
+			el.attr("data-headingLevel", parseFloat(nodeName.substring(1,2)) + 1);
 			return;
 		}
-		classs = String(jQ(this).attr("class")).toLowerCase();
-		if (classs.search(/-itemprop-/) > -1) {
-			jQ(this).attr("itemprop",hackFixProperty(classs.replace(/.*-itemprop-/, "")));
-		}
-
-		if ( classs.match(config.bibMatch)) {
-				type = "bib";
-				console.log("BIB!");	
-		}
-
-
-		// Normalise some styles
-	        var nodeName = jQ(this).get(0).nodeName;
-                var isHeading = false;
+		
+        //Headings using styles
+		jQ.each(config.headingMatches,
 		//Look for headings via paragraph style
-		config.headingMatches.forEach(
-			function (item) {
+			function (n, item) {
 				if (classs.search(item[0]) > -1) {
-					tag = classs.replace(item[0], item[1]);
-					type = "h";
-					headingLevel = item[2];
+					el.attr("data-type", "h");
+					el.attr("data-headingLevel", item[1]);
+					return;
 					
 				}
 			}
 		);
-  		
-		if (nodeName.search(/H\d/) == 0) {
-			headingLevel = parseFloat(nodeName.substring(1,2)) + 1; 
-			type = "h";
-		}
-
-		if (type === 'h') {
-			state.setHeadinglevel(headingLevel);
-			state.headingLevelDown(); //unindent where necessary
-			if (state.headingNestingNeeded()){
-                              
-				state.pushHeadingState(jQ("<section></section>"));
-				
-				
-			}
-
-		}
 		
-		else {
-			state.setCurrentIndent(parseFloat(jQ(this).css("margin-left")));
-		}
-
-		
-		
+		style = el.attr("style");
+		//TODO This will fail on adjacent lists (or other things) with same depth but diff formatting
+		if ( style && (style.search(/mso-list/) > -1)) {
+			
+			el.attr("data-type","li");
+			//Try to work out its type
 	
-	      	//USe ICE style conventions to identify lists i
-		if (classs.substr(0,2) == "li") {
-			type = "li";
-			listType = classs.substr(3,1);	
-			if (listType == "n") {
-				listType = "1";
+			number = el.find("span[style='mso-list:Ignore']").text();
+			if (number.search(/A/) > -1) {
+				listType = "A";
 			}
-			else if (listType == "p") {
-				type="p";
+			else if (number.search(/a/) > -1) {
+				listType = "a";
 			}
-		} 
-	
-	 	if (type == "p") {
-			style = jQ(this).attr("style");
-			//TODO This will fail on adjacent lists (or other things) with same depth but diff formatting
-			if ( style && (style.search(/mso-list/) > -1)) {
-			
-				type = "li";
-				//If this is a new list try to work out its type
-				if (state.nestingNeeded()) {
-					number = jQ(this).find("span[style='mso-list:Ignore']").text();
-					if (number.search(/A/) > -1) {
-						listType = "A";
-					}
-					else if (number.search(/a/) > -1) {
-						listType = "a";
-					}
-					else if (number.search(/I/) > -1) {
-						listType = "I";
-					}
-					else if (number.search(/i/) > -1) {
-						listType = "i";
-					}
-					else {
-						listType = "b"; //Default to bullet lists
-					}
-				}
-			
+			else if (number.search(/I/) > -1) {
+				listType = "I";
+			}
+			else if (number.search(/i/) > -1) {
+				listType = "i";
+			}
+			else {
+				listType = "b"; //Default to bullet lists
+			}
+				
+			el.attr("data-listType",listType);
+			return;
 			}
 			
-			else if (span = jQ(this).children("span:only-child")) {
-				//We have some paragraph formatting
+			//We have some paragraph formatting
+			if (span = el.children("span:only-child")) {
 				fontFamily = span.css("font-family");
 				//Word is not supplying the generic font-family for stuff in Courier so sniff it out
-			
+
 				if (fontFamily && (fontFamily.search(config.preMatch) > -1)) {
 					type = "pre";
 				}
-			
 			}
 
-		}
 		
-		//Get rid of formatting now
-		getRidOfStyleAndClass(jQ(this));
-
 		
+   }
+   
+   function processpara(nodeList, container) {
+	//Table? Add it and get out - process later
+	if (jQ(this).get(0).nodeName === 'TABLE') {
+		state.getCurrentContainer().append(jQ(this));
+		return;
+	}
+	  //Get baseline indent
+	var leastIndent = 10000;
 
-		state.levelDown(); //If we're embedded too far, fix that
-	        //TODO fix nestingNeeded the check for 'h' is a hack
-		if (type==="bib") {
-			state.getCurrentContainer().append(jQ(this));
-			if (!state.getCurrentContainer().filter("section[class='bibliogrpahy']").length) {
-				jQ(this).wrap("<section class='bibliogrpahy'></section>");
-				state.pushState(jQ(this).parent());
-				
-			}
+	nodeList.filter("p, h1, h2, h3, h4, h5").each(
+		function (index) {			
+			getType(jQ(this));
+	
 			
-
-
-			
-		}
-		else if (!(type === "h") && state.nestingNeeded()) {
-		
-			//Put this inside the previous para element - we're going deeper
-			jQ(this).appendTo(state.getCurrentContainer());
-			if (type == "li") {
-		                if (listType == "b") {
-					jQ(this).wrap("<ul><li></li></ul>");
+			if (jQ(this).attr("data-type") == "p") {
+				indent = parseFloat(jQ(this).css("margin-left"));
+				if (indent < leastIndent) {
+					leastIndent = indent;
 				}
-
-				else {
-				 	jQ(this).wrap("<ol type='" + listType + "'><li></li></ol>");
-				}
-				//TODO look at the number style and work out if we need to restart list numbering
-				//The style info has a pointer to a list structure - if we see a new one restart the list
-
-			
-				getRidOfExplicitNumbering(jQ(this));
-			
-			
 			}
-			else if (type == "pre") {
-				jQ(this).wrap("<pre></pre>");
-				//TODO: fix unwanted line breaks
-				jQ(this).replaceWith(removeLineBreaks(jQ(this).html()));
-			}	
-			else {
-				 jQ(this).wrap("<blockquote></blockquote>");
-				 
+		}
+
+	);
+	  
+	var state = stateFactory(container, leastIndent);
+	nodeList.each(function (index) {
+	
+		
+
+	type = jQ(this).attr("data-type");
+	headingLevel = jQ(this).attr("data-headingLevel");
+	listType = jQ(this).attr("data-listType");
+
+	if (index == 0)  {
+		//When in tables currentContainer is not defined so this is harmless
+		//Still, this is probably quite shonky code
+		jQ("body").prepend(state.getCurrentContainer());       
+	}	
+		
+	if (type === 'h') {
+		state.setHeadinglevel(headingLevel);
+		state.headingLevelDown(); //unindent where necessary
+		if (state.headingNestingNeeded()){        
+			state.pushHeadingState(jQ("<section></section>"));		
 			}
-			//All subsequent paras at the right level and type should go into this para
-		        //So remember it
-			
+		}
+		else {
+			var margin = parseFloat(jQ(this).css("margin-left"));
+			state.setCurrentIndent(margin);
+		}
+
+		
+		
+	
+	    
+	  
+	 
+
+		
+		
+
+	//Get rid of formatting now
+	getRidOfStyleAndClass(jQ(this));
+
+
+
+	state.levelDown(); //If we're embedded too far, fix that
+		//TODO fix nestingNeeded the check for 'h' is a hack
+	if (type==="bib") {
+		state.getCurrentContainer().append(jQ(this));
+		if (!state.getCurrentContainer().filter("section[class='bibliogrpahy']").length) {
+			jQ(this).wrap("<section class='bibliogrpahy'></section>");
 			state.pushState(jQ(this).parent());
+			
+		}
+		
+
+
+		
+	}
+	else if (!(type === "h") && state.nestingNeeded()) {
+		
+		//Put this inside the previous para element - we're going deeper
+		jQ(this).appendTo(state.getCurrentContainer());
+		
+		if (type == "li") {
+			if (listType == "b") {
+				jQ(this).wrap("<ul><li></li></ul>");
+			}
+
+			else {
+				jQ(this).wrap("<ol type='" + listType + "'><li></li></ol>");
+			}
+			//TODO look at the number style and work out if we need to restart list numbering
+			//The style info has a pointer to a list structure - if we see a new one restart the list
+
+		
+			getRidOfExplicitNumbering(jQ(this));
 		
 		
+		}
+		else if (type == "pre") {
+			jQ(this).wrap("<pre></pre>");
+			//TODO: fix unwanted line breaks
+			jQ(this).replaceWith(removeLineBreaks(jQ(this).html()));
+		}	
+		else {
+			 jQ(this).wrap("<blockquote></blockquote>");	 
+		}
+		//All subsequent paras at the right level and type should go into this para
+		//So remember it
+		state.pushState(jQ(this).parent());
+	}
+	else {
+		if (type == "li") {
+			jQ(this).appendTo(state.getCurrentContainer().parent());
+			jQ(this).wrap("<li></li>");
+
+			getRidOfExplicitNumbering(jQ(this));
+			state.pushState(jQ(this).parent());
 		
 		}
 		else {
-		      
-		
-			if (type == "li") {
-				jQ(this).appendTo(state.getCurrentContainer().parent());
-				jQ(this).wrap("<li></li>");
-
-				getRidOfExplicitNumbering(jQ(this));
-				state.pushState(jQ(this).parent());
-			
+			jQ(this).appendTo(state.getCurrentContainer());
+			if (type == "h") {
+				tag = "<h" + parseFloat(headingLevel) + ">";
+				jQ(this).replaceWith( tag + jQ(this).html());
 			}
-			else {
 
-				jQ(this).appendTo(state.getCurrentContainer());
-				if (type == "h") {
-					
-					if (tag) {
-						//It's a heading - this replace with stuff doesn't seem to work if you do it before moving the element
-						jQ(this).replaceWith( tag + jQ(this).html());
 
-					} 
-					
-					
 			
+			else if (type == "pre") {
+				//TODO: Get rid of this repetition (but note you have to add jQ(this) to para b4 wrapping or it won't work)
+				if (jQ(this).prev("pre").length) {
+					jQ(this).prev().append("\n" + removeLineBreaks(jQ(this).html()));
+					jQ(this).remove();
 				}
-	
-
+				else {
+					jQ(this).wrap("<pre></pre>");
+					jQ(this).replaceWith(removeLineBreaks(jQ(this).html()));
+				}
 				
-				else if (type == "pre") {
-					//TODO: Get rid of this repetition (but note you have to add jQ(this) to para b4 wrapping or it won't work)
-					if (jQ(this).prev("pre").length) {
-						jQ(this).prev().append("\n" + removeLineBreaks(jQ(this).html()));
-						jQ(this).remove();
-					}
-					else {
-						jQ(this).wrap("<pre></pre>");
-						jQ(this).replaceWith(removeLineBreaks(jQ(this).html()));
-					}
-					
-				}
-			}	
-			
 			}
+		}	
 		
 		}
-	      
-	 
-	  )
-		}
+
+	}
+	  
+
+	)
+	}
         
     /*
     Some experiments in document structure editing - may revive these at some stage
@@ -707,6 +693,28 @@ function word2HML5Factory(jQ) {
    }
 
    function convert() {
+    //TODO - make this a wee bit smarter :)
+    jQ("o\\:p, p:empty, span:empty,  meta, object").remove();
+	jQ("br, hr").parent().remove();
+	jQ("p:empty, span:empty").remove();
+	jQ("p:empty, span:empty").remove();
+	jQ("p:empty, span:empty").remove();
+	jQ("p:empty, span:empty").remove();
+	
+	jQ("p[class^='MsoToc']").remove();
+	
+	//Extract the style info
+	styleInfo = jQ("style").text();
+	 var re = /p\.(\w+)[^{]*[{]mso-style-name:\s*(.+);/g;
+	 var match = re.exec(styleInfo);
+	while (match != null) {
+		// matched text: match[0]
+		// match start: match.index
+		classNames[match[1]] = match[2].replace("\\","").replace(/"/,"");
+		console.log(match[1]);
+		match = re.exec(styleInfo);
+	}
+	console.log(classNames);
 	//Start by string-processing MSO markup into something we can read and reloading
 	if (jQ("article").length) {
 		return ; //Don't run twice
@@ -716,15 +724,12 @@ function word2HML5Factory(jQ) {
 	jQ("head").html(loseWordMongrelMarkup(jQ("head").html()));
 
 	jQ("body").html(loseWordMongrelMarkup(jQ("body").get(0).innerHTML));
-	
 
-	// TODO alert(loseWordMongrelMarkup("<![if !supportLists]>"));
-
-	//Get rid of the worst of the emndded stuff
+	//Get rid of the worst of the embedded stuff
 	jQ("xml").remove();
 	//Get rid of Word's sections
 	jQ("div").each(
-	function(index) {
+		function(index) {
 	   jQ(this).children(":first-child").unwrap();
 	}
 	
@@ -732,11 +737,10 @@ function word2HML5Factory(jQ) {
 	
 	
 
-
+	
 	processparas();
-
+	
 	//Add Schema.org markup
-
 	jQ("table[summary^='itemprop']").each(function() {
 		prop = jQ(this).attr("summary");
 		prop = prop.replace(/itemprop-/,"");
@@ -807,7 +811,7 @@ function word2HML5Factory(jQ) {
 	html.removeAttr("xmlns:o");
 	html.removeAttr("xmlns:w");
 	html.removeAttr("xmlns:m");
-        body = html.find("body");
+    body = html.find("body");
 	body.removeAttr("link");
 	body.removeAttr("vlink");
 	jQ("head").append('<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />');
@@ -829,6 +833,8 @@ function word2HML5Factory(jQ) {
 	});
 	//TODO make this configurable
 	jQ("span[lang^='EN']").each(function(i) {$(this).replaceWith($(this).html()	)});
+	
+	jQ("style").remove();
 
 	//Deal with hidden stuff, particularly embedded JSON from Zotero
 	jQ("span[class='mso-conditional']").each(function() {
@@ -839,7 +845,7 @@ function word2HML5Factory(jQ) {
 			var zoteroData = /ADDIN ZOTERO_ITEM CSL_CITATION/;
 			if (contents.match(zoteroData)) {
 				var data = addLineBreaks(contents.replace(zoteroData, ""));
-				console.log(data);
+				 
 				var dataURI = "data:application/json,"  + escape(data);
 				var citeRef = jQ("<a itemprop='url'></a>");
 				jQ(this).after(citeRef);
@@ -863,7 +869,7 @@ function word2HML5Factory(jQ) {
 	jQ("span[class='SpellE'], span[class='GramE'], span[style], span[data]").each(function(i) {jQ(this).replaceWith(jQ(this).html())});
 
       
-	jQ("o\\:p, p:empty, span:empty,style, link, meta, object").remove();
+	
       
 	 	
    }
@@ -871,7 +877,7 @@ function word2HML5Factory(jQ) {
    word2html.config = config;
   
    if (typeof chrome === 'undefined' ||  typeof chrome.extension === 'undefined')  {
-	logoURL = "http://tools.scholarlyhtml.org/w2html5/w2html5ext/logo-Xalon-ext.png";
+	logoURL = "http://tools.scholarlyhtml.org/w2html5/w2html5ext/WordDownBackground.png";
 	}
    else {
 		logoURL = chrome.extension.getURL('logo-Xalon-ext.png');
