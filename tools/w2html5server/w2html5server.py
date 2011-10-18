@@ -21,6 +21,8 @@ class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
 
 class CustomHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
+
+        self.path = self.path.split('?')[0]
         [path, ext] = os.path.splitext(self.path)
 
         dir = os.getcwd()
@@ -29,7 +31,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             #TODO: Serve this properly not using this really bad #hack
             os.chdir("C:\\Users\\pt\\Desktop\\jischtml5");
           
-        if ext =='.doc':
+        if ext =='.doc' or ext =='.docx':
            
             wdApp = win32com.client.gencache.EnsureDispatch('Word.Application')
             wdApp.Visible = 1
@@ -37,8 +39,11 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             newPath = path + ".htm"
             htmlPath = os.path.join(os.getcwd(), newPath[1:])
             doc.SaveAs(htmlPath, win32com.client.constants.wdFormatHTML)
-            doc.SaveAs(os.path.join(os.getcwd(), path[1:]), win32com.client.constants.wdFormatDocument)
-            
+            if ext == '.doc':
+                fmt = win32com.client.constants.wdFormatDocument
+            else:
+                 fmt =  win32com.client.constants.wdFormatXMLDocument
+            doc.SaveAs(os.path.join(os.getcwd(), path[1:]), fmt)
             html5Path = htmlPath + "5.htm"
             #Put conversion code into head
             f = open(htmlPath, 'r')
@@ -82,6 +87,6 @@ def run(port, handler_class, path):
     httpd.serve_forever()
 
 
+runAt = "C:\\Users\\pt\\Dropbox"
 
-
-run(8001, CustomHandler, "C:\\Users\\pt\\Dropbox")
+run(8001, CustomHandler,  runAt)

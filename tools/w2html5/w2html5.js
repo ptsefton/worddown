@@ -236,9 +236,13 @@ function word2HML5Factory(jQ) {
 			classs = classNames[classs];
 		}
 		el.attr("data-class", classs);
-		
-		if (classs.search(/-itemprop-/) > -1) {
-		    console.log("ITEMPROP" + classs);
+		if (classs.search(/-itemprop$/) > -1) {
+		    var prop = el.find("a").attr("href");
+			el.find("a *:first").unwrap();
+			el.attr("itemprop",prop);
+		}
+		else if (classs.search(/-itemprop-/) > -1) {
+		   
 			el.attr("itemprop",classs.replace(/.*-itemprop-/, ""));
 		}
 		if ( classs.match(config.bibMatch)) {
@@ -380,8 +384,8 @@ function word2HML5Factory(jQ) {
 		//TODO fix nestingNeeded the check for 'h' is a hack
 	if (type==="bib") {
 		state.getCurrentContainer().append(jQ(this));
-		if (!state.getCurrentContainer().filter("section[class='bibliogrpahy']").length) {
-			jQ(this).wrap("<section class='bibliogrpahy'></section>");
+		if (!state.getCurrentContainer().filter("section[class='bibliography']").length) {
+			jQ(this).wrap("<section class='bibliography'></section>");
 			state.pushState(jQ(this).parent());
 			
 		}
@@ -744,10 +748,10 @@ function word2HML5Factory(jQ) {
 	});
 	
 	//Wordprocessor microformat - needs work.
-	jQ("a[href^='http://schema.org/']").each(function() {
+	jQ("a[href^='http://schema.org/'], a[href^='http://purl.org/'] ").each(function() {
 		var href = jQ(this).attr("href");
 		container = jQ(this).parents("tr:not(:first-child),table,section,article,body").first();
-		//Use spit on '?' instead?
+		//Use split on '?' instead?
 		
 		typeProp = href.split("?itemprop=");
 		container.attr("itemtype", typeProp[0]);
@@ -761,20 +765,28 @@ function word2HML5Factory(jQ) {
 	});
 
 
-        jQ("*[class^='itemprop-']").each(function() {
-		prop = jQ(this).attr("class");
-		prop = prop.replace(/itemprop-/,"");
-		inHeading = jQ(this).parent("h1,h2,h3,h4,h5");
-		if  (inHeading.length) {
-			//Itemprop on a heading means it applies 
-			container.get(0).attr("itemprop", prop);
-			jQ(this).find("*:first").unwrap();
-		}
-
-		else {
+        jQ("*[class^='itemprop']").each(function() {
+		prop = jQ(this).attr("class");alert(prop);
+		if (prop.search(/-itemprop$/) > -1) {
+		    //The property is in an HREF in embedded link
 			container = jQ(this);
-
+			prop = jQ(this).find("a[href]").get(0).attr("href");
+			jQ(this).find("a[href]").find("*:first").unwrap();
+			
 		}
+		else {
+			prop = prop.replace(/itemprop-/,"");
+			inHeading = jQ(this).parent("h1,h2,h3,h4,h5");
+			if  (inHeading.length) {
+				//Itemprop on a heading means it applies 
+				container.get(0).attr("itemprop", prop);
+				jQ(this).find("*:first").unwrap();
+			}
+
+			else {
+				container = jQ(this);
+			}
+			}
 		container.attr("itemprop", prop);
 		container.removeAttr("class");
 	});
@@ -826,27 +838,29 @@ function word2HML5Factory(jQ) {
 			removeMsoTableFormatting(jQ(this));
 		}
 	});
-	//TODO make this configurable
-	jQ("span[lang^='EN']").each(function(i) {$(this).replaceWith($(this).html()	)});
 	
 	jQ("style").remove();
 
 	//Deal with hidden stuff, particularly embedded JSON from Zotero
 	jQ("span[class='mso-conditional']").each(function() {
+	   
 		embeddedObjType  = jQ(this).attr("data");
 		if (embeddedObjType === "if supportFields") {
 			var contents = jQ(this).text();
 			
 			var zoteroData = /ADDIN ZOTERO_ITEM CSL_CITATION/;
 			if (contents.match(zoteroData)) {
+				console.log("XX" + jQ(this).next().html());
 				var data = addLineBreaks(contents.replace(zoteroData, ""));
 				 
 				var dataURI = "data:application/json,"  + escape(data);
-				var citeRef = jQ("<a itemprop='url'></a>");
-				jQ(this).after(citeRef);
+				var citeRef = jQ("<link itemprop='url'></link>");
+				var next = jQ(this).next();
 				citeRef.attr("href",dataURI);
+				jQ(this).replaceWith(citeRef);
 				citeRef.wrap(jQ("<span itemprop='cites' itemscope='itemscope' itemtype='http://schema.org/ScholarlyArticle'></span>"));
-				
+				citeRef.parent().append(next);
+				next.wrap("<span itemprop='label'>");
 				
 			}
 		}
@@ -859,6 +873,9 @@ function word2HML5Factory(jQ) {
 		jQ(this).remove();
 
 	});
+	//TODO make this configurable
+	jQ("span[lang^='EN']").each(function(i) {$(this).replaceWith($(this).html()	)});
+	
 	var unwantedSpans = "span[class='SpellE'], span[class='GramE'], span[style], span[data]";
 	while (jQ(unwantedSpans).length) {
 		jQ(unwantedSpans).each(function(i) {jQ(this).replaceWith(jQ(this).html())});
