@@ -4,21 +4,34 @@
 var setupPage = function() {
 	
 	jQ = $;
-	if(jQ("#csl-bar").length) { return};
-	cslbar = jQ("<div id='csl-bar'>Choose a reference format: </div>");
-	cslbar.append("<span id='ieee'>IEEE</span>&nbsp;");
-	cslbar.append("<span id='bluebook'>bluebook_demo</span>&nbsp;");
-	cslbar.append("<span id='chicago_author_date'>Chicago Author-Date</span>&nbsp;");
-	cslbar.append("<span id='chicago_fullnote_bibliography2'>Chicago Fullnote Bibliography</span>&nbsp;");
-
-	jQ("body").prepend(cslbar);
-	cslbar.find('#ieee').click(function() {format(ieee);});
-	cslbar.find('#bluebook').click(function() {format(bluebook_demo);});
-	cslbar.find('#chicago_author_date').click(function() {format(chicago_author_date);});
-	cslbar.find('#chicago_fullnote_bibliography2').click(function() {format(chicago_fullnote_bibliography2);});
+	//
+	
+	
+	
 }
 
+
+
 var format = function(csl) {
+    var killCslBar = function() {
+		jQ("#csl-bar").remove();
+	}
+	var showCslBar = function(el) {
+	    if (!jQ("#csl-bar").length) {
+			cslbar = jQ("<span id='csl-bar'>Choose a reference format: </span>");
+			cslbar.append("<span id='ieee'>IEEE</span>&nbsp;");
+			//cslbar.append("<span id='bluebook'>bluebook_demo</span>&nbsp;");
+			cslbar.append("<span id='chicago_author_date'>Chicago Author-Date</span>&nbsp;");
+			//cslbar.append("<span id='chicago_fullnote_bibliography2'>Chicago Fullnote Bibliography</span>&nbsp;");
+			cslbar.css({"background-color" : "blue" , "color" : "white"});
+		}
+		el.after(cslbar);
+		cslbar.find('#ieee').click(function() {killCslBar();format(ieee);});
+		//cslbar.find('#bluebook').click(function() {killCslBar();format(bluebook_demo);});
+		cslbar.find('#chicago_author_date').click(function() {killCslBar();format(chicago_author_date);});
+		//cslbar.find('#chicago_fullnote_bibliography2').click(function() {killCslBar();format(chicago_fullnote_bibliography2);});
+	}
+   
     if (csl == undefined) { csl = chicago_author_date};
 	
 	
@@ -45,13 +58,18 @@ var format = function(csl) {
 	//TODO define get data 
 	jQ = $;
 	//First pass thru the document to get citation data - for now assume DataURI encoded JSON
-	console.log("Starting first pass");
+	
 	jQ("*[itemprop='cites']").each(function () {
+	   
+		jQ(this).css({"background-color" : "red" , "color" : "white"});
+		jQ(this).click(function(){showCslBar(jQ(this))});
+		
 		//TODO - don't assume this is encoded - you might have to fetch the data!
 		citeData = unescape(jQ(this).find("*[itemprop='url']").attr("href").split(",").pop());
 		citeData = citeData.replace(/(\\r\\n|\\n|\\r)/gm," ");
-		//console.log(citeData);	
-		citation = JSON.parse(citeData);
+		
+        //alert(citeData);		
+		var citation = eval('(' + citeData + ')');
 		//TODO build a list of items in order
 		id = citation.citationID;
 		//console.log(id);
@@ -60,8 +78,7 @@ var format = function(csl) {
 		jQ.each(citation.citationItems, function(i,n) {	
 			data[n.id] = n.itemData;
 			items.push(n.id);
-			
-		});
+			});
 		
 
 		});
@@ -69,7 +86,7 @@ var format = function(csl) {
                
 		var citeproc, output;
 		var sys = new Sys(abbreviations, data); 
-		citeproc = new CSL.Engine(sys, csl);
+		var citeproc = new CSL.Engine(sys, csl);
 
 
 		var output;
@@ -90,7 +107,10 @@ var format = function(csl) {
 		if (output) {
 			jQ(".bibliography").html(output.slice(1).toString());
 			}
+			
+			
 }
+
 
 
 	// Chicago Author-Date chicago_author_date

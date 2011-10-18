@@ -21,10 +21,10 @@
 var host = "http://localhost:8001/tools/recite/"; 
 
 window.bookmarklet = function(opts){fullFunc1(opts)};
- 
+
 // These are the styles, scripts and callbacks we include in our bookmarklet:
 window.bookmarklet({
- 
+    
     css : [],
     js  : [
 		host + "citeproc-js/demo/loadabbrevs.js", 
@@ -39,7 +39,7 @@ window.bookmarklet({
 		host + "runcites.js"],    
     jqpath : 'http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js', 
     ready : function(){
-
+	   
 	 	format();
 		setupPage();
    	    }
@@ -54,14 +54,14 @@ function fullFunc1(opts){
    
 	// Check if we've processed all of the JS files (or if there are none)
 	if (jsfiles.length === 0) {
-	   
+	    
 		opts.ready();
 		return false;
 	}
- 
+	
         // Load the first js file in the array
         $.getScript(jsfiles[0],  function(){ 
- 
+			
             // When it's done loading, remove it from the queue and call the function again    
             getJS(jsfiles.slice(1));
  
