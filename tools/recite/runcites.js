@@ -105,7 +105,7 @@ var format = function(csl) {
 		//Then come up with a micrododata way of saying the same thing
 		 output = citeproc.makeBibliography();
 		if (output) {
-			jQ(".bibliography").html(output.slice(1).toString());
+			jQ("*[itemtype='http://purl.org/orb/References']").html(output.slice(1).toString());
 			}
 			
 			
