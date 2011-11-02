@@ -536,10 +536,10 @@ function word2HML5Factory(jQ) {
    }
 
    function convert() {
-    jQ("o\\:p, meta, object").remove();
+    jQ("o\\:p, meta[name], object").remove();
 	jQ("hr").parent().remove();
-	while (jQ("p:empty, span:empty").length) {
-		jQ("p:empty, span:empty").remove();
+	while (jQ("p:empty, spans:empty").length) {
+		jQ("p:empty, spans:empty").remove();
 	}
 	
 	jQ("p[class^='MsoToc']").remove();
@@ -689,10 +689,62 @@ function word2HML5Factory(jQ) {
 			var contents = jQ(this).text();
 			
 			var zoteroData = /ADDIN ZOTERO_ITEM CSL_CITATION/;
+			function serialize(obj) {
+				if (Object.prototype.toString.call(obj) === "[object String]") {
+
+					return(obj);
+				}
+				else if (Object.prototype.toString.call(obj) === "[object Number]") {
+				
+					return obj.toString();
+				}
+				else if (obj instanceof Array) {
+				
+					returnString = "";
+					jQ.each(obj, function(index,el) {
+						
+						returnString = returnString + serialize(el);
+		
+					});
+					
+					return returnString;
+				}
+				else {
+				   
+				    
+					var resultString = "";
+					jQ.each(obj, function(i,o) {
+					
+						if (Object.prototype.toString.call(o) === "[object String]")  {
+				
+							resultString = resultString +  "<meta itemprop='" + i +"' content='" + o + "'/>";;
+						}
+						else {
+						    var contents = serialize(o);
+							
+							if (contents.match(/^<.*>$/)) {
+								resultString = resultString + "<span itemprop='" + i + "'>" + contents + "</span>";
+							}
+							else {
+								resultString = resultString + "<meta itemprop='" + i +"' content='" + contents + "'/>";
+							}
+						}
+					});
+					return resultString;
+					}
+			
+			}
 			if (contents.match(zoteroData)) {
 				
 				var data = addLineBreaks(contents.replace(zoteroData, ""));
-				 
+				data = data.replace(/(\\r\\n|\\n|\\r)/gm," ");
+				//TODO: 
+				citations = eval("(" + data + ")");
+				citationMicrodata = jQ("");
+				
+				
+				
+				
 				var dataURI = "data:application/json,"  + escape(data);
 				var citeRef = jQ("<link itemprop='url'></link>");
 				var next = jQ(this).next();
@@ -700,7 +752,21 @@ function word2HML5Factory(jQ) {
 				jQ(this).replaceWith(citeRef);
 				citeRef.wrap(jQ("<span itemprop='cites' itemscope='itemscope' itemtype='http://schema.org/ScholarlyArticle'></span>"));
 				citeRef.parent().append(next);
-				next.wrap("<span itemprop='label'>");
+				next.wrap("<span itemprop='label'></span>");
+				jQ.each(citations.citationItems, function(itemNum, item) {
+					mD = jQ("<span itemprop='cites' itemscope='itemscope' itemtype='http://schema.org/ScholarlyArticle'>XX:</span>");
+/					//mD.append(serialize(item.itemData));
+					next.parent().after(mD);
+					
+					mD.get(0).innerHTML=serialize(item.itemData);
+					mD.append("<link itemprop='uri' href='" + item["uri"] + "'/>");
+					console.log(mD.html());
+					
+				});
+				
+				
+				
+				 
 				
 			}
 		}
@@ -732,17 +798,11 @@ function word2HML5Factory(jQ) {
 	}
    else {
 		logoURL = chrome.extension.getURL('logo-Xalon-ext.png');
-			
-		
    }	
    jQ("body").css("background-image", "url(" + logoURL + ")");
    jQ("body").css("background-repeat", "no-repeat");
-  
- 
-
    
    return word2html;
-
 }
 
 
