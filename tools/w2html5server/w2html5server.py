@@ -13,6 +13,7 @@ from threading import Thread
 from socketserver import ThreadingMixIn
 import time
 import sys
+import urllib 
 
 
 
@@ -26,19 +27,22 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
         homeDir = os.getcwd()
 
         self.path = self.path.split('?')[0]
+        self.uqPath = urllib.parse.unquote(self.path)
+        [docDir,fileName] = os.path.split(self.uqPath)
+        [fileRoot,ext] = os.path.splitext(self.uqPath)
+        print("UQPATH : " + self.uqPath)
+        print("PATH : " + self.path)
+        print("EXT" + ext)
         
-        [docDir,fileName] = os.path.split(self.path)
-        [fileRoot,ext] = os.path.splitext(self.path)
-       
-      
         if ext =='.js' or ext=='.css':
                 #TODO: Serve this properly not using this really bad #hack
+                print("Changing to code DIR");
                 os.chdir(codeDir);
           
         if ext =='.doc' or ext =='.docx':
                 path = docDir + fileRoot
-                docPath = os.path.join(homeDir, self.path[1:])
-                path = path[1:]
+                docPath = os.path.join(homeDir, self.uqPath[1:])
+                #path = path[1:]
                 docDir = os.path.dirname(docPath)
 
                 htmlDir = docDir = os.path.join(docDir, "_html") 
@@ -53,16 +57,22 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                 doc = wdApp.Documents.Open(docPath)
                
                 doc.SaveAs(htmlPath, win32com.client.constants.wdFormatHTML)
+               
+                
                 if ext == '.doc':
                         fmt = win32com.client.constants.wdFormatDocument
                 else:
                         fmt =  win32com.client.constants.wdFormatXMLDocument
+                doc.SaveAs(htmlPath.replace(".htm",""), fmt)
                 doc.SaveAs(docPath, fmt)
-                html5Path = htmlPath + "5.htm"
+                
                 #Put conversion code into head
                 f = open(htmlPath, 'r')
                 html = f.read()
                 f.close()
+
+
+                
                 html = html.replace("</head>", """
                         <script src='/tools/w2html5/jquery-1.6.4.js' type="text/javascript"> </script>
                         <script src='/tools/w2html5/w2html5.js' type='text/javascript'> </script>
@@ -77,11 +87,11 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                                   
                         </script>
                         </head>""")
-                f = open(html5Path, 'w')
+                f = open(htmlPath, 'w')
                 f.write(html)
                 f.close()
-                os.remove(htmlPath)
-                #Experimental support for rendering using IE
+                
+                #Experimental support for rendering using IE  
                 #ie = win32com.client.gencache.EnsureDispatch("InternetExplorer.Application")
 
                 #ie.Visible = 1 #make this 0, if you want to hide IE window
@@ -89,9 +99,9 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                 #ie.Navigate("http://localhost:8001/" + path + ".htm5.htm")
                 #it takes a little while for page to load. sometimes takes 5 sec.
                 
-                self.path = html5Path.replace(homeDir,"").replace("\\","/")
+                self.path = urllib.parse.quote(htmlPath.replace(homeDir,"").replace("\\","/"))
                 print("Final path" + self.path)
-                self.send_response(301)
+                self.send_response(303)
                 self.send_header("Location", self.path)
                 self.end_headers()
                 

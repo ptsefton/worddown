@@ -38,6 +38,8 @@ function word2HML5Factory(jQ) {
     config.preFontMatch = /(courier)|(monospace)/i;
 	//ICE convention is to hide styles begining with z in HTML
 	//UKOLN use "Cover" for things we really only need in print
+	//The idea of this config object is that you can configure for 
+	//local use
 	config.hideStyleMatch = /(Cover)|(^z)/;
 	config.preStyleMatch = /(^pre)|(^code)/i;
 	config.bibMatch = /MsoBibliography/i;
@@ -537,6 +539,9 @@ function word2HML5Factory(jQ) {
 
    function convert() {
     jQ("o\\:p, meta[name], object").remove();
+	while (jQ("o:SmartTagType").length){ 
+		jQ("o:SmartTagType *").first().unwrap();
+	}
 	jQ("hr").parent().remove();
 	while (jQ("p:empty, spans:empty").length) {
 		jQ("p:empty, spans:empty").remove();
