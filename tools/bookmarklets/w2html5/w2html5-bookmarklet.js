@@ -9,7 +9,7 @@
  * Released under the Creative Commons Attribution 3.0 Unported License,
  * as defined here: http://creativecommons.org/licenses/by/3.0/
  *
- *  <a href="javascript:(function(){var head=document.getElementsByTagName('head')[0],script=document.createElement('script');script.type='text/javascript';script.src='http://jischtml5.googlecode.com/git/tools/bookmarklets/w2html5/w2html5-bookmarklet.js';head.appendChild(script);})(); void 0">Show data/source LOCAL</a>
+ *  <a href="javascript:(function(){var head=document.getElementsByTagName('head')[0],script=document.createElement('script');script.type='text/javascript';script.src='http://jischtml5.googlecode.com/git/tools/bookmarklets/w2html5/w2html5-bookmarklet.js';head.appendChild(script);})(); void 0">WordDown/a>
  * Adapted by Peter Sefton
  * MicrodataJS can be obtained from here: https://gitorious.org/microdatajs/ 
  * And jszip from here: https://github.com/Stuk/jszip.git

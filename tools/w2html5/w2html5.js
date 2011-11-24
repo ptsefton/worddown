@@ -344,7 +344,7 @@ function word2HML5Factory(jQ) {
 
 	);
 	//Flatten lists (Not sure if word ever nests them?)
-	//Seems to be Word for mac that does this
+	//Seems to be Word for mac that does adds lists
 	node.find("ul,ol").each(
 		function() {
 			
