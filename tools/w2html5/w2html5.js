@@ -397,15 +397,7 @@ function word2HML5Factory(jQ) {
 			state.headingLevelDown(); //unindent where necessary
 			if (state.headingNestingNeeded()){        
 				state.pushHeadingState(jQ("<section></section>"));		
-				if (jQ(this)[0].nodeName==="P") {
-					headTag = "<hx></hx>".replace(/x/g, String(headingLevel));
-					
-					headEl = jQ(headTag);
-					headEl.html(jQ(this).html());
-					console.log(headEl);
-					jQ(this).replaceWith(headEl);
-					
-				}
+				
 				}
 		}
 		else { //Not a heading
@@ -471,12 +463,12 @@ function word2HML5Factory(jQ) {
 			}
 			else {
 				jQ(this).appendTo(state.getCurrentContainer());
-			    /*Obsolete ???
+			    
 				if (type == "h") {
 					tag = "<h" + parseFloat(headingLevel) + ">";
 					jQ(this).replaceWith( tag + jQ(this).html());
 					}
-				*/
+				
 			
 
 

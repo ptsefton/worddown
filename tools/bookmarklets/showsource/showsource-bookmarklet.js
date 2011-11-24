@@ -23,7 +23,7 @@ window.bookmarklet = function(opts){fullFunc(opts)};
 window.bookmarklet({
  
     css : [host + "showsource.css"],
-    js  : [host + 'jszip/jszip.js', host + 'microdatajs/lib/json2.js',host + 'microdatajs/jquery.microdata.js', host + 'microdatajs/jquery.microdata.json.js', host + 'showsource.js'],    
+    js  : [host + 'jszip/jszip.js', host + 'microdatajs/lib/json2.js',host + 'microdatajs/jquery.microdata.js', host + 'microdatajs/jquery.microdata.json.js', host + 'xhtml.js', host + 'showsource.js'],    
     jqpath : 'http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js', 
     ready : function(){
 	 	showSource();
