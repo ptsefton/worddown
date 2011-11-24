@@ -12,13 +12,14 @@
  *  <a href="javascript:(function(){var head=document.getElementsByTagName('head')[0],script=document.createElement('script');script.type='text/javascript';script.src='http://localhost:8001/tools/bookmarklets/w2html5/local-w2html5-bookmarklet.js?' + Math.floor(Math.random()*99999);head.appendChild(script);})(); void 0">Show data/source</a>
  * THIS VERSION IS FOR TESTING - ASSUMES YOU HAVE A WEBSERVER SERVING THE jischtml5 project directory - eg 
  * 	cd jischtml5
- *	sudo python -m SimpleHTTPServer 8010
+ *	python -m SimpleHTTPServer 8001
+ *      
  * Adapted by Peter Sefton
  * MicrodataJS can be obtained from here: https://gitorious.org/microdatajs/ 
  * And jszip from here: https://github.com/Stuk/jszip.git
  */
 
-var host = "http://localhost:8010/tools/w2html5/"; 
+var host = "http://localhost:8001/tools/w2html5/"; 
 
 window.bookmarklet = function(opts){fullFunc(opts)};
  
@@ -27,7 +28,7 @@ window.bookmarklet({
  
     css : [host + "W3C-WD.css", host + "w2html5.css"],
     js  : [host + 'w2html5.js'],    
-    jqpath : 'http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js', 
+    jqpath : host + 'jquery-1.6.4.js', 
     ready : function(){
 	 	converter = word2HML5Factory($);
 		

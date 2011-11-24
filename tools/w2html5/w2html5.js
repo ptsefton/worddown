@@ -48,7 +48,7 @@ function word2HML5Factory(jQ) {
 		[/H(ead)?(ing)? ?2.*/i ,3],
 		[/H(ead)?(ing)? ?3.*/i ,4],
 		[/H(ead)?(ing)? ?4.*/i ,5],
-		[/title/i, 1],
+		[/^title/i, 1],
 		[/subtitle/i,  2]
 		
 	]		
@@ -344,6 +344,7 @@ function word2HML5Factory(jQ) {
 
 	);
 	//Flatten lists (Not sure if word ever nests them?)
+	//Seems to be Word for mac that does this
 	node.find("ul,ol").each(
 		function() {
 			
@@ -396,6 +397,15 @@ function word2HML5Factory(jQ) {
 			state.headingLevelDown(); //unindent where necessary
 			if (state.headingNestingNeeded()){        
 				state.pushHeadingState(jQ("<section></section>"));		
+				if (jQ(this)[0].nodeName==="P") {
+					headTag = "<hx></hx>".replace(/x/g, String(headingLevel));
+					
+					headEl = jQ(headTag);
+					headEl.html(jQ(this).html());
+					console.log(headEl);
+					jQ(this).replaceWith(headEl);
+					
+				}
 				}
 		}
 		else { //Not a heading
@@ -691,6 +701,7 @@ function word2HML5Factory(jQ) {
 	   
 		embeddedObjType  = jQ(this).attr("data");
 		if (embeddedObjType === "if supportFields") {
+			jQ(this).find("span[class='msoDel']").remove();
 			var contents = jQ(this).text();
 			
 			var zoteroData = /ADDIN ZOTERO_ITEM CSL_CITATION/;
@@ -739,16 +750,15 @@ function word2HML5Factory(jQ) {
 					}
 			
 			}
+
 			if (contents.match(zoteroData)) {
 				
 				var data = addLineBreaks(contents.replace(zoteroData, ""));
 				data = data.replace(/(\\r\\n|\\n|\\r)/gm," ");
 				//TODO: 
+
 				citations = eval("(" + data + ")");
-				citationMicrodata = jQ("");
-				
-				
-				
+				citationMicrodata = jQ("");			
 				
 				var dataURI = "data:application/json,"  + escape(data);
 				var citeRef = jQ("<link itemprop='url'></link>");
@@ -760,12 +770,12 @@ function word2HML5Factory(jQ) {
 				next.wrap("<span itemprop='label'></span>");
 				jQ.each(citations.citationItems, function(itemNum, item) {
 					mD = jQ("<span itemprop='cites' itemscope='itemscope' itemtype='http://schema.org/ScholarlyArticle'>XX:</span>");
-/					//mD.append(serialize(item.itemData));
+					//mD.append(serialize(item.itemData));
 					next.parent().after(mD);
 					
 					mD.get(0).innerHTML=serialize(item.itemData);
 					mD.append("<link itemprop='uri' href='" + item["uri"] + "'/>");
-					console.log(mD.html());
+					
 					
 				});
 				
@@ -776,7 +786,7 @@ function word2HML5Factory(jQ) {
 			}
 		}
 		else if (embeddedObjType === "if !vml") {
-			jQ(this).find("img").unwrap();
+			//jQ(this).find("img").unwrap();
 		}
 
 			

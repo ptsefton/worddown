@@ -18,7 +18,7 @@
  * And jszip from here: https://github.com/Stuk/jszip.git
  */
 
-var host = "http://localhost:8000/tools/showsource/"; 
+var host = "http://localhost:8001/tools/showsource/"; 
 var hostRemote = "http://tools.scholarlyhtml.org/showsource/";
 
 
@@ -30,7 +30,7 @@ window.bookmarklet({
     css : [host + "showsource.css"],
     js  : [hostRemote + 'jszip/jszip.js', hostRemote + 'microdatajs/lib/json2.js',hostRemote + 'microdatajs/jquery.microdata.js', 
 			hostRemote + 'microdatajs/jquery.microdata.json.js', host + 'showsource.js', host + 'xhtml.js'],    
-    jqpath : 'http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js', 
+    jqpath :  host + 'jquery-1.6.4.js', 
     ready : function(){
 	 	showSource();
  

@@ -37,7 +37,7 @@ window.bookmarklet({
 		host + "citeproc-js/demo/loadcites.js",
 		host + "json2.js",
 		host + "runcites.js"],    
-    jqpath : 'http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js', 
+    jqpath : host + 'jquery-1.6.4.js', 
     ready : function(){
 	   
 	 	format();

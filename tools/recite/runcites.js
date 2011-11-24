@@ -26,7 +26,7 @@ var format = function(csl) {
 			cslbar.css({"background-color" : "blue" , "color" : "white"});
 		}
 		el.after(cslbar);
-		cslbar.find('#ieee').click(function() {killCslBar();format(ieee);});
+		cslbar.find('#ieee').click(function() {killCslBar();format(ieee); alert("ieee");});
 		//cslbar.find('#bluebook').click(function() {killCslBar();format(bluebook_demo);});
 		cslbar.find('#chicago_author_date').click(function() {killCslBar();format(chicago_author_date);});
 		//cslbar.find('#chicago_fullnote_bibliography2').click(function() {killCslBar();format(chicago_fullnote_bibliography2);});
@@ -65,21 +65,25 @@ var format = function(csl) {
 		jQ(this).click(function(){showCslBar(jQ(this))});
 		
 		//TODO - don't assume this is encoded - you might have to fetch the data!
-		citeData = unescape(jQ(this).find("*[itemprop='url']").attr("href").split(",").pop());
-		citeData = citeData.replace(/(\\r\\n|\\n|\\r)/gm," ");
+		dataEl = jQ(this).find("*[itemprop='url'][href^='data:/application/json']");
+		if (dataEl.length) {
+			citeData = unescape(dataEl.attr("href").split(",").pop());
+
+			citeData = unescape(jQ(this).find("*[itemprop='url']").attr("href").split(",").pop());
+			citeData = citeData.replace(/(\\r\\n|\\n|\\r)/gm," ");
 		
-        //alert(citeData);		
-		var citation = eval('(' + citeData + ')');
-		//TODO build a list of items in order
-		id = citation.citationID;
-		//console.log(id);
-		jQ(this).attr("data-citationID",id);
-		citations[id] = citation;	
-		jQ.each(citation.citationItems, function(i,n) {	
-			data[n.id] = n.itemData;
-			items.push(n.id);
+        		//alert(citeData);		
+			var citation = eval('(' + citeData + ')');
+			//TODO build a list of items in order
+			id = citation.citationID;
+			//console.log(id);
+			jQ(this).attr("data-citationID",id);
+			citations[id] = citation;	
+			jQ.each(citation.citationItems, function(i,n) {	
+				data[n.id] = n.itemData;
+				items.push(n.id);
 			});
-		
+		}
 
 		});
 
@@ -94,9 +98,7 @@ var format = function(csl) {
 		//Second pass to format the citations and insert
 		jQ("*[data-citationID]").each(function () {
 			cluster = citations[jQ(this).attr("data-citationID")];
-			console.log(JSON.stringify(cluster));
 			citationInstance = citeproc.appendCitationCluster(cluster).pop().pop();
-			
 			jQ(this).find("span").html(citationInstance);
 			
 		    
