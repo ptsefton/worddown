@@ -1,6 +1,6 @@
 /*
 
-COPYRIGHT Peter Malcolm Sefton 2011
+COPYRIGHT Peter Malcolm Sefton 2011-2013
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,8 +19,7 @@ COPYRIGHT Peter Malcolm Sefton 2011
 
 */
 
-//TODO - capture everything after "-" in a style name and use a class on generated p or h
-
+//TODO Refactor so that the Word to HTML and semantic parts are separate modules
 
 _get = function(url, callback) {
    
@@ -48,7 +47,8 @@ function word2HML5Factory(jQ) {
 		[/H(ead)?(ing)? ?2.*/i ,3],
 		[/H(ead)?(ing)? ?3.*/i ,4],
 		[/H(ead)?(ing)? ?4.*/i ,5],
-		[/^title/i, 1],
+		[/H(ead)?(ing)? ?5.*/i ,6],
+		[/^(mso)?title/i, 1],
 		[/subtitle/i,  2]
 		
 	]		
@@ -203,11 +203,10 @@ function word2HML5Factory(jQ) {
 		jQ(element).removeAttr("class");
 	}
    	function processparas() {
-
 	  //Always wrap carefully
-	  var container = jQ("<article itemscope='itemscope' itemtype='http://schema.org/ScholarlyArticle'></article>")	   
+	  var container = jQ("<article>  </article>")	   
 	  processpara(jQ("body"), container);
-      //TODO: get rid of this div
+      
 	  jQ("td, th").each(function() {
 		 processpara(jQ(this), jQ('this'));
 	  });
@@ -223,21 +222,26 @@ function word2HML5Factory(jQ) {
   }
 
    function getType(el) {
-		el.attr("data-margin-left",parseFloat(el.css("margin-left")));
+		//el.attr("data-margin-left",parseFloat(el.css("margin-left")));
+		el.attr("data-margin-left",parseFloat(el.offset().left));
 		el.attr("data-type", "p");
-		classs =  String(el.attr("class"));
+		var classs =  String(el.attr("class"));
+                //Look up the list we parsed out of CSS earlier
 		if (classs in classNames) {
 			classs = classNames[classs];
 		}
+		
 		//el.attr("data-class", classs);
-		if (classs.search(/-itemprop$/) > -1) {
+		if (classs.search(/-(itemprop|property)$/) > -1) {
 		    var prop = el.find("a").attr("href");
 			el.find("a *:first").unwrap();
-			el.attr("itemprop",prop);
+			el.attr("property",prop);
 		}
-		else if (classs.search(/-itemprop-/) > -1) {
-		   
-			el.attr("itemprop",classs.replace(/.*-itemprop-/, ""));
+
+		
+		else if (classs.search(/-(itemprop|property)-/) > -1) {
+		         
+			el.attr("property",classs.replace(/.*-(itemprop|property)-/, ""));
 		}
 		else if (classs.match(config.hideStyleMatch)) {
 			el.remove();
@@ -258,16 +262,22 @@ function word2HML5Factory(jQ) {
 		if (nodeName.search(/H\d/) == 0) {
 			el.attr("data-type", "h");
 			el.attr("data-headingLevel", parseFloat(nodeName.substring(1,2)) + 1);
+			
 			return;
 		}
 		
-        //Headings using styles
+                //Headings using styles
 		jQ.each(config.headingMatches,
 		//Look for headings via paragraph style
 			function (n, item) {
+				
 				if (classs.search(item[0]) > -1) {
 					el.attr("data-type", "h");
 					el.attr("data-headingLevel", item[1]);
+					if (classs.search(/-/) > -1) {
+						//Heading has extra style info following "-"
+						el.attr("data-class", classs.replace(/.*?-/,""));
+					}
 					return;
 					
 				}
@@ -306,10 +316,10 @@ function word2HML5Factory(jQ) {
 			
 			//We have some paragraph formatting
 			if (span = el.children("span:only-child")) {
-			  
+			    
 				fontFamily = span.css("font-family");
 				//Word is not supplying the generic font-family for stuff in Courier so sniff it out
-			
+			   
 				if (fontFamily && (fontFamily.search(config.preFontMatch) > -1)) {
 					el.attr("data-type", "pre");
 					
@@ -321,7 +331,7 @@ function word2HML5Factory(jQ) {
    }
    
    function processpara(node, container) {
-	//Table? Add it and get out - process later
+	
 	if (jQ(this).get(0).nodeName === 'TABLE') {
 		state.getCurrentContainer().append(jQ(this));
 		return;
@@ -329,94 +339,109 @@ function word2HML5Factory(jQ) {
 	  //Get baseline indent
 	var leastIndent = 10000;
 	
-	
-	//Work out what type of thing each heading and paragraph is
 	node.children("p, h1, h2, h3, h4, h5").each(
 		function (index) {			
 			getType(jQ(this));	
-			if (jQ(this).attr("data-type") == "p") {
-				indent = jQ(this).attr("data-margin-left");
+			
+			if (jQ(this).attr("data-margin-left")) {
+				var indent = parseFloat(jQ(this).attr("data-margin-left"));
 				if (indent < leastIndent) {
 					leastIndent = indent;
 				}
 			}
 		}
-
 	);
+
 	//Flatten lists (Not sure if word ever nests them?)
-	//Seems to be Word for mac that does adds lists
+	//Seems to be Word for mac that does adds lists (TODO: test this again when I figure out how to make Word put in lists)
 	node.find("ul,ol").each(
 		function() {
-			
-			var listType = jQ(this).attr("type");
-			jQ(this).find("li").each(function(){
-			        var par = jQ("<p></p>");
-					par.attr("data-listType",listType);
-					
-					par.attr("data-type","li");
-					style = jQ(this).attr("style");
-					
-					par.attr("style",style);
-					indent = parseFloat(style.replace(/.*list *(.*)pt/,"$1"));
-					if (indent < leastIndent) {
-						leastIndent = indent;
+			var list = jQ(this)
+			var listType = list.attr("type");
+			list.find("li p").each(function(){
+					jQ(this).attr("data-listType",listType);
+					jQ(this).attr("data-type","li");
+					jQ(this).attr("data-margin-left", parseFloat(jQ(this).offset().left));
+					if (jQ(this).parent("li").length) {
+						jQ(this).unwrap();
 					}
-					par.attr("data-margin-left", indent);
-					
-					par.html(jQ(this).html());
-					jQ(this).replaceWith(par);
-					
 			});
-			jQ(this).find("*").first().unwrap();
+			list.find("li p").first().unwrap();
+			list.find("*").first().unwrap();
 
 		}
 	);
 	
 	
+
 	//Main formatting code 
 	var state = stateFactory(container, leastIndent);
 	node.children().each(function (index) {
 	
 		var type = jQ(this).attr("data-type");
-		var margin = jQ(this).attr("data-margin-left");
+		var margin = parseFloat(jQ(this).attr("data-margin-left"));
 		var listType = jQ(this).attr("data-listType");
 		var headingLevel = jQ(this).attr("data-headingLevel");
-		//Temp data attributes can go now
-		jQ(this).removeAttr("data-headingLevel");
-		jQ(this).removeAttr("data-listType");
-		jQ(this).removeAttr("data-class");
-		jQ(this).removeAttr("data-type");
-		jQ(this).removeAttr("data-margin-left")
+		
 
 		if (index == 0)  {
 			jQ("body").prepend(state.getCurrentContainer());       
 		}	
 			
 		if (type === 'h') {
-			state.setHeadinglevel(headingLevel);
-			state.headingLevelDown(); //unindent where necessary
-			if (state.headingNestingNeeded()){        
-				state.pushHeadingState(jQ("<section></section>"));		
+			
+			if (jQ(this).parents("table").length) {
+			   //TODO - Make this slide handling much more general-purpose
+                           // Need a convention for making a one-cell table that is just there to create a section/slide etc 
+
+	
+			   if (jQ(this).attr("data-class") === "Slide") {
+					
+					var title = jQ(this).parents("table").first().attr("title");
+					jQ(this).parents("table").first().attr("title","Slide: " + title);
 				
 				}
+			}
+		        else {
+		   	state.setHeadinglevel(headingLevel);
+			state.headingLevelDown(); //unindent where necessary
+			
+			
+			if (headingLevel == "1") {
+				//Actually title
+				var title = jQ("<title></title>");
+				
+				jQ("title").remove(); //NO titles ATM but one day there might be
+				jQ("head").append("title");
+			}
+			if (state.headingNestingNeeded()){        
+				var newSection = jQ("<section></section>");
+				var classs = jQ(this).attr("data-class");
+				if (classs.indexOf("typeof-") === 0) {
+					
+					newSection.attr("typeof",classs.replace(/^typeof-/,""));
+				}
+				state.pushHeadingState(newSection);
+				
+				}
+			}
+			
 		}
 		else { //Not a heading
-				
 				state.setCurrentIndent(margin);
 		}
 		
 		//Get rid of formatting now
 		getRidOfStyleAndClass(jQ(this));
-
+		
 		state.levelDown(); //If we're embedded too far, fix that
 		//TODO fix nestingNeeded the check for 'h' is a hack
 		if (type==="bib") {
 			state.getCurrentContainer().append(jQ(this));
-			if (!state.getCurrentContainer().filter("section[itemtype='http://purl.org/orb/References']").length) {
-				jQ(this).wrap("<section itemtype='http://purl.org/orb/References' itemscope></section>");
+			if (!state.getCurrentContainer().filter("section[typeof='http://purl.org/orb/References']").length) {
+				jQ(this).wrap("<section typeof='http://purl.org/orb/References'></section>");
 				state.pushState(jQ(this).parent());
-				
-			}			
+			}
 		}
 		else if (!(type === "h") && state.nestingNeeded()) {
 			
@@ -454,16 +479,31 @@ function word2HML5Factory(jQ) {
 		}
 		else {//Indenting not needed
 			if (type == "li") {
-				jQ(this).appendTo(state.getCurrentContainer().parent());
-				jQ(this).wrap("<li></li>");
+			    //Hack - check if we're actually in a list - warning copied code below TODO
+				if (!state.getCurrentContainer()) {
+					if (listType == "b") {
+					jQ(this).wrap("<ul><li></li></ul>");
+					}
 
+					else {
+					    jQ(this).wrap("<ol type='" + listType + "'><li></li></ol>");
+					}
+					
+				}
+				else {
+					jQ(this).appendTo(state.getCurrentContainer().parent());
+					jQ(this).wrap("<li></li>");
+				}
 				getRidOfExplicitNumbering(jQ(this));
 				state.pushState(jQ(this).parent());
 			
 			}
 			else {
-				jQ(this).appendTo(state.getCurrentContainer());
-			    
+			    //Hack - the state-stack is a mess
+				//if (state.getCurrentContainer().length) {
+					jQ(this).appendTo(state.getCurrentContainer());
+			    //}
+				
 				if (type == "h") {
 					tag = "<h" + parseFloat(headingLevel) + ">";
 					jQ(this).replaceWith( tag + jQ(this).html());
@@ -491,7 +531,12 @@ function word2HML5Factory(jQ) {
 			}	
 			
 			}
-
+		//Temp data attributes can go now
+		jQ(this).removeAttr("data-headingLevel");
+		jQ(this).removeAttr("data-listType");
+		jQ(this).removeAttr("data-class");
+		jQ(this).removeAttr("data-type");
+		jQ(this).removeAttr("data-margin-left")
 		}
 		  
 
@@ -539,12 +584,12 @@ function word2HML5Factory(jQ) {
 	el.removeAttr("class");
    }
 
-   function convert() {
+function convert() {
     jQ("o\\:p, meta[name], object").remove();
 	while (jQ("o:SmartTagType").length){ 
 		jQ("o:SmartTagType *").first().unwrap();
 	}
-	jQ("hr").parent().remove();
+	//jQ("hr").parent().remove();
 	while (jQ("p:empty, spans:empty").length) {
 		jQ("p:empty, spans:empty").remove();
 	}
@@ -553,88 +598,109 @@ function word2HML5Factory(jQ) {
 	
 	//Extract the style info to make a lookup table for classes
 	styleInfo = jQ("style").text();
-	var re = /p\.(\w+)[^{]*[{]mso-style-name:\s*(.+);/g;
+	var re = /p\.([^,]*)[^{]*[{]mso-style-name:\s*(.+);/g;
 	var match = re.exec(styleInfo);
 	while (match != null) {
 		// matched text: match[0]
 		// match start: match.index
-		classNames[match[1]] = match[2].replace("\\","").replace(/"/,"");
+		classNames[match[1]] = match[2].replace(/\\/g,"").replace(/"/g,"");
 		match = re.exec(styleInfo);
 	}
 	//Start by string-processing MSO markup into something we can read and reloading
 	if (jQ("article").length) {
 		return ; //Don't run twice
 	}
-
+	
 	jQ("o\\:SmartTagType").each(function(){(jQ(this).replaceWith(jQ(this).html()))});
+	
+	
 	jQ("head").html(loseWordMongrelMarkup(jQ("head").html()));
 
 	jQ("body").html(loseWordMongrelMarkup(jQ("body").get(0).innerHTML));
-
+    //console.log(jQ("body").html());
 	//Get rid of the worst of the embedded stuff
 	jQ("xml").remove();
-	//Get rid of Word's sections
-	jQ("div").each(
-		function(index) {
-	   jQ(this).children(":first-child").unwrap();
+	
+	
+	while (jQ("div").length) {
+	    //console.log(jQ("div").html());
+		jQ("div").each(function(i) {jQ(this).replaceWith(jQ(this).html() );});
 	}
-	
-	);
-	
 	
 
 	
 	processparas();
 	
 	//Add Schema.org markup
-	jQ("table[summary^='itemprop']").each(function() {
+	jQ("table[summary^='(itemprop|property)']").each(function() {
 		prop = jQ(this).attr("summary");
-		prop = prop.replace(/itemprop-/,"");
-		jQ(this).attr("itemprop", prop);
+		prop = prop.replace(/(itemprop|property)-/,"");
+		jQ(this).attr("(itemprop|property)", prop);
 		jQ(this).removeAttr("summary");
 	});
 	
+        //TODO - generalise this to work with other vocabs - eg lists 
+	jQ("table[title^='Slide:']").each(function() {
+	   
+		var paras = jQ(this).find("ul, ol, td>p, th>p, h1, h2, h3, h4, h5, h6, section, table, dl, blockquote, pre");
+		
+		var slide = jQ("<section typeof='http://purl.org/ontology/bibo/Slide' >");
+		jQ(this).replaceWith(slide);
+		paras.appendTo(slide);
+	});
 	//Wordprocessor microformat - needs work.
+	
+	//TODO: Get rid of hard-wired vocab
 	jQ("a[href^='http://schema.org/'], a[href^='http://purl.org/'] ").each(function() {
 		var href = jQ(this).attr("href");
-		container = jQ(this).parents("tr:not(:first-child),table,section,article,body").first();
-		//Use split on '?' instead?
 		
-		typeProp = href.split("?itemprop=");
-		container.attr("itemtype", typeProp[0]);
-		if (typeProp.length == 2) {
-			jQ(container).attr("itemprop", typeProp[1]);
+		typeProp = href.split("?");
+		var container = jQ(this).parents("tr:not(:first-child),table,section,article,body").first();
+
+		var vocab = "";
+		// TODO match /purl.org/contology/w.*
+		//else
+		var parser = document.createElement('a');
+		parser.href = href;
+		vocab = parser.protocol + "//" + parser.host + "/"; 
+		jQ(container).attr("vocab",vocab);  
+
+		container.attr("typeof", typeProp[0]);
+
+		if (typeProp.length > 1) {
+
+			jQ(container).attr("property", typeProp[1].replace(/(itemprop|property)=/,""));
+
 		}
 		
-		container.attr("itemscope", "itemscope");
+		//container.attr("itemscope", "itemscope");
 		jQ(this).replaceWith(jQ(this).html());
 		
 	});
 
 
-        jQ("*[class^='itemprop']").each(function() {
-		prop = jQ(this).attr("class");alert(prop);
-		if (prop.search(/-itemprop$/) > -1) {
+        jQ("*[class^='(itemprop|propery)']").each(function() {
+		prop = jQ(this).attr("class");
+		var container = jQ(this);
+
+		if (prop.search(/-(itemprop|property)$/) > -1) {
+		    //Style is like class='p-propery' so
 		    //The property is in an HREF in embedded link
-			container = jQ(this);
 			prop = jQ(this).find("a[href]").get(0).attr("href");
 			jQ(this).find("a[href]").find("*:first").unwrap();
 			
 		}
 		else {
-			prop = prop.replace(/itemprop-/,"");
+			prop = prop.replace(/(itemprop|property)-/,"");
 			inHeading = jQ(this).parent("h1,h2,h3,h4,h5");
 			if  (inHeading.length) {
 				//Itemprop on a heading means it applies 
-				container.get(0).attr("itemprop", prop);
+				container = inHeading.get(0);
 				jQ(this).find("*:first").unwrap();
 			}
-
-			else {
-				container = jQ(this);
-			}
-			}
-		container.attr("itemprop", prop);
+		}
+		
+		container.attr("property", prop);
 		container.removeAttr("class");
 	});
 	
@@ -649,7 +715,7 @@ function word2HML5Factory(jQ) {
         
 	jQ("i[style], b[style]").each(function(){jQ(this).removeAttr("style");});
 	
-	jQ("v:shapetype").remove();
+	jQ("v:shapetype, v:group").remove();
 	
         //Sledgehammer approach to endnotes and footnotes
 	jQ("a[style^='mso-endnote-id'], a[style^='mso-footnotenote-id']").each(function(){
@@ -668,6 +734,7 @@ function word2HML5Factory(jQ) {
     body = html.find("body");
 	body.removeAttr("link");
 	body.removeAttr("vlink");
+	jQ("head").html("");
 	jQ("head").append('<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />');
 
 	//Clean up tables
@@ -687,14 +754,15 @@ function word2HML5Factory(jQ) {
 	});
 	
 	jQ("style").remove();
+//TODO - probably want to lose this, was part of the HTML5 project	
 
 	//Deal with hidden stuff, particularly embedded JSON from Zotero
 	jQ("span[class='mso-conditional']").each(function() {
-	   
+	    var contents = jQ(this).text();
 		embeddedObjType  = jQ(this).attr("data");
 		if (embeddedObjType === "if supportFields") {
 			jQ(this).find("span[class='msoDel']").remove();
-			var contents = jQ(this).text();
+			
 			
 			var zoteroData = /ADDIN ZOTERO_ITEM CSL_CITATION/;
 			function serialize(obj) {
@@ -725,16 +793,16 @@ function word2HML5Factory(jQ) {
 					
 						if (Object.prototype.toString.call(o) === "[object String]")  {
 				
-							resultString = resultString +  "<meta itemprop='" + i +"' content='" + o + "'/>";;
+							resultString = resultString +  "<meta property='" + i +"' content='" + o + "'/>";;
 						}
 						else {
 						    var contents = serialize(o);
 							
 							if (contents.match(/^<.*>$/)) {
-								resultString = resultString + "<span itemprop='" + i + "'>" + contents + "</span>";
+								resultString = resultString + "<span property='" + i + "'>" + contents + "</span>";
 							}
 							else {
-								resultString = resultString + "<meta itemprop='" + i +"' content='" + contents + "'/>";
+								resultString = resultString + "<meta property='" + i +"' content='" + contents + "'/>";
 							}
 						}
 					});
@@ -742,8 +810,7 @@ function word2HML5Factory(jQ) {
 					}
 			
 			}
-
-			if (contents.match(zoteroData)) {
+		 			if (contents.match(zoteroData)) {
 				
 				var data = addLineBreaks(contents.replace(zoteroData, ""));
 				data = data.replace(/(\\r\\n|\\n|\\r)/gm," ");
@@ -757,11 +824,11 @@ function word2HML5Factory(jQ) {
 				var next = jQ(this).next();
 				citeRef.attr("href",dataURI);
 				jQ(this).replaceWith(citeRef);
-				citeRef.wrap(jQ("<span itemprop='cites' itemscope='itemscope' itemtype='http://schema.org/ScholarlyArticle'></span>"));
+				citeRef.wrap(jQ("<span property='cites' typeof='http://schema.org/ScholarlyArticle'></span>"));
 				citeRef.parent().append(next);
 				next.wrap("<span itemprop='label'></span>");
 				jQ.each(citations.citationItems, function(itemNum, item) {
-					mD = jQ("<span itemprop='cites' itemscope='itemscope' itemtype='http://schema.org/ScholarlyArticle'>XX:</span>");
+					mD = jQ("<span property='cites' typeof='http://schema.org/ScholarlyArticle'>XX:</span>");
 					//mD.append(serialize(item.itemData));
 					next.parent().after(mD);
 					
@@ -778,12 +845,15 @@ function word2HML5Factory(jQ) {
 			}
 		}
 		else if (embeddedObjType === "if !vml") {
-			//jQ(this).find("img").unwrap();
+			jQ(this).find("img").unwrap();
 		}
 
+		if (jQ(this).attr("data").match(/if \!supportFootnotes/)) {
 			
-		
-		jQ(this).remove();
+			}	
+		else {
+			jQ(this).remove();
+		}
 
 	});
 	//TODO make this configurable
@@ -800,14 +870,6 @@ function word2HML5Factory(jQ) {
    word2html.convert = convert;
    word2html.config = config;
   
-   if (typeof chrome === 'undefined' ||  typeof chrome.extension === 'undefined')  {
-	logoURL = "http://tools.scholarlyhtml.org/w2html5/WordDownBackground.png";
-	}
-   else {
-		logoURL = chrome.extension.getURL('logo-Xalon-ext.png');
-   }	
-   jQ("body").css("background-image", "url(" + logoURL + ")");
-   jQ("body").css("background-repeat", "no-repeat");
    
    return word2html;
 }

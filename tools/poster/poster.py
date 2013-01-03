@@ -20,8 +20,8 @@
 
 
 
-import xmlrpc.client, http.client, argparse, re, uuid, os.path, base64
-
+import xmlrpc.client, http.client, argparse, re, uuid, os.path, base64, codecs, urllib.parse
+from getpass import getpass
 
 
 
@@ -55,56 +55,70 @@ class Poster:
 		if proxy == None:
 			self.server = xmlrpc.client.ServerProxy(self.blogUrl, allow_none=True)
 		else:
+			print("Setting proxy" + proxy)
 			p = ProxiedTransport()
 			p.set_proxy(proxy)
 			self.server = xmlrpc.client.ServerProxy(self.blogUrl, allow_none=True, transport=p)
 		
 	
-	def post(self,file):
-		f = open(file)
-		html = f.read();
-		(filePath,filename)= os.path.split(file)
-		#TODO post images first...
+	def post(self,file, postType):
+           
+                f = open(file)
+ 
+                html = f.read();
+                (filePath,filename)= os.path.split(file)
+                #TODO post images first...
 		
 		#I know, regex to process HTML! but it's impossible to install
 		# a sensible python3 XML/HTML library on OS X in less than a day
 		
-		#TODO - remove case sensitivity
-		html = re.sub(".*<body>", "", html)
-		html = re.sub("</body>.*", "", html)
-		srcs = dict()
-		srcMatch = re.compile(r"<img[^>]*src=(\"|')(.*?)\1")
-		httpMatch = re.compile("https?:")
-		#Find all the image src atts
-		for m in srcMatch.finditer(html):
-			src = m.group(2)
-			if not httpMatch.match(src):
-				srcs[src] = src
-				
-		for imgFile in srcs.keys():
-			data = {}
-			(tmp,ext) = os.path.splitext(imgFile)
-			data['name'] = str(fileName + "_" +  imgFile) 
-			#Assume WP can work out the mimetype
-			data['type'] = 'image/jpeg'
-			data['overwrite'] = True 
-			contents = open(os.path.join(filePath,imgFile),"rb").read()
-			
-			data['bits'] = xmlrpc.client.Binary(contents)
-			
-			wpImg = self.server.wp.uploadFile(self.blogid,self.username,self.password,data)
-			html = re.sub(r"(<img[^>]*src=)(\"|')%s(\2)" % imgFile, r"\1\2%s\3" % wpImg['url'], html) 
-			print("Uploaded an image")
-			print(wpImg)
-		
-		title = "Unititled"
-		content = {}
-		content['name'] = 'untitled'
-		content['post_type'] = 'post'
-		content['post_content'] = html
-		result = self.server.wp.newPost(self.blogid, self.username, self.password, content)
-		print("Uploaded a page")
-		print(result)
+                #TODO - remove case sensitivity
+                html = re.sub(".*<body.*?>", "", html)
+                html = re.sub("</body>.*", "", html)
+                srcs = dict()
+
+		#Find title?
+                #TODO - make this configurable
+                titleMatcher = "<h1.*?>(.*?)</h1>"
+                titleMatch = re.search(titleMatcher, html)
+                title = "Untitled"
+                if titleMatch != None:
+                    title = titleMatch.group(1)
+
+                srcMatch = re.compile(r"<img[^>]*src=(\"|')(.*?)\1")
+                httpMatch = re.compile("https?:")
+                #Find all the image src atts
+                for m in srcMatch.finditer(html):
+                        src = m.group(2)
+                        if not httpMatch.match(src):
+                                srcs[src] = src
+                                
+                for imgFile in srcs.keys():
+                        data = {}
+                        (tmp,ext) = os.path.splitext(imgFile)
+                        imgFileName = urllib.parse.unquote(imgFile)
+                        data['name'] = str(filename + "_" + imgFileName)
+                        #Assume WP can work out the mimetype
+                        data['type'] = 'image/jpeg'
+                        data['overwrite'] = True 
+                        contents = open(os.path.join(filePath,imgFileName),"rb").read()
+                        
+                        data['bits'] = xmlrpc.client.Binary(contents)
+                        
+                        wpImg = self.server.wp.uploadFile(self.blogid,self.username,self.password,data)
+                        html = re.sub(r"(<img[^>]*src=)(\"|')%s(\2)" % imgFile, r"\1\2%s\3" % wpImg['url'], html) 
+                        print("Uploaded an image")
+                        print(wpImg)
+
+                content = {}
+                content['name'] = title
+                print("TYPE:" +  postType)
+                content['post_type'] = postType
+                content['post_content'] = html
+                content['post_title'] = title
+                result = self.server.wp.newPost(self.blogid, self.username, self.password, content)
+                print("Uploaded a page")
+                print(result)
 
 
 
@@ -115,16 +129,23 @@ def main():
 	parser.add_argument('username', metavar='username', type=str, 
 					   help='Your username')
 	#TODO - ask for this on the commandline instead
-	parser.add_argument('password', metavar='password', type=str,
+	parser.add_argument('--password', metavar='password', type=str,
 					   help='Your password')
 					   
 	parser.add_argument('file', metavar='file', type=str,
 					   help='HTML file to post')			
 	parser.add_argument("--proxy", help="Proxy server and port eg 'proxy.uws.edu.au:3128'")	   
+	parser.add_argument("--type", choices=("post","page"), help="Post-type, 'post' or 'page'", default='post')	   
+
 	args = parser.parse_args()
-	print(args.proxy)
-	p = Poster(args.url, args.username, args.password, args.proxy)
-	p.post(args.file)    
+	if args.password == None:
+              password = getpass()
+	else:
+              password = args.password
+             
+	p = Poster(args.url, args.username, password, args.proxy)
+	p.post(args.file, args.type
+	)    
 	
 if __name__=="__main__":
 	main()
