@@ -16,7 +16,7 @@
  */
 
 
-var host = "http://tools.scholarlyhtml.org/w2html5/";
+var host = "http://jischtml5.googlecode.com/git/tools/w2html5/";
 window.bookmarklet = function(opts){fullFunc(opts)};
  
 // These are the styles, scripts and callbacks we include in our bookmarklet:
