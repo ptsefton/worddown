@@ -225,7 +225,7 @@ function word2HML5Factory(jQ) {
 		//el.attr("data-margin-left",parseFloat(el.css("margin-left")));
 		el.attr("data-margin-left",parseFloat(el.offset().left));
 		el.attr("data-type", "p");
-		var classs =  String(el.attr("class"));
+		var classs =  el.attr("class") ? String(el.attr("class")) : "";
                 //Look up the list we parsed out of CSS earlier
 		if (classs in classNames) {
 			classs = classNames[classs];
@@ -325,7 +325,7 @@ function word2HML5Factory(jQ) {
 					
 				}
 			}
-
+	
 		
 		
    }
@@ -382,7 +382,7 @@ function word2HML5Factory(jQ) {
 		var margin = parseFloat(jQ(this).attr("data-margin-left"));
 		var listType = jQ(this).attr("data-listType");
 		var headingLevel = jQ(this).attr("data-headingLevel");
-		
+		var classs = jQ(this).attr("data-class") ? jQ(this).attr("data-class") :  "";
 
 		if (index == 0)  {
 			jQ("body").prepend(state.getCurrentContainer());       
@@ -395,7 +395,7 @@ function word2HML5Factory(jQ) {
                            // Need a convention for making a one-cell table that is just there to create a section/slide etc 
 
 	
-			   if (jQ(this).attr("data-class") === "Slide") {
+			   if (classs == "Slide") {
 					
 					var title = jQ(this).parents("table").first().attr("title");
 					jQ(this).parents("table").first().attr("title","Slide: " + title);
@@ -416,7 +416,6 @@ function word2HML5Factory(jQ) {
 			}
 			if (state.headingNestingNeeded()){        
 				var newSection = jQ("<section></section>");
-				var classs = jQ(this).attr("data-class");
 				if (classs.indexOf("typeof-") === 0) {
 					
 					newSection.attr("typeof",classs.replace(/^typeof-/,""));
@@ -713,7 +712,7 @@ function convert() {
 	
 	
         
-	jQ("i[style], b[style]").each(function(){jQ(this).removeAttr("style");});
+	jQ("p[style], i[style], b[style]").each(function(){jQ(this).removeAttr("style");});
 	
 	jQ("v:shapetype, v:group").remove();
 	
