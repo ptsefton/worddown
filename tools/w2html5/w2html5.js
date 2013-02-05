@@ -641,7 +641,7 @@ function convert() {
         //TODO - generalise this to work with other vocabs - eg lists 
 	jQ("table[title^='Slide:']").each(function() {
 	   
-		var paras = jQ(this).children();
+		var paras = jQ(this).find("td th").children();
 		var slide = jQ("<section typeof='http://purl.org/ontology/bibo/Slide' >");
 		jQ(this).replaceWith(slide);
 		paras.appendTo(slide);
