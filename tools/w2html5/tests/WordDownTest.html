@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>QUnit basic example</title>
+  <link rel="stylesheet" href="/resources/qunit-1.11.0.css">
+</head>
+<body>
+  <div id="qunit"></div>
+  <div id="qunit-fixture"></div>
+  <script src="/resources/qunit-1.11.0.js"></script>
+ <script src="/tools/w2html5/jquery-1.6.4.js"></script>
+ <script src="/tools/w2html5/w2html5.js"></script>
+  <script>
+
+
+   test ("Remove empty pars from OO document", function () {
+	var w2h = word2HML5Factory($);
+        console.log(w2h);
+	var hasEmpties = $("div#OOCodeWithEmptyPars-in");
+	var noEmpties = $("div#OOCodeWithEmptyPars-out");
+	w2h.removeEmpties(hasEmpties);
+	equal(hasEmpties.html(), noEmpties.html(), "Empty OpenOffice paras should be removed");
+   });
+  </script>
+
+
+<div id="OOCodeWithEmptyPars-in">
+<BODY LANG="en-US" DIR="LTR">
+<P STYLE="margin-bottom: 0in">Not empty</P>
+<P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::"></A><A NAME="left-margin:0-"></A>
+<BR>
+</P>
+<P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::1"></A><A NAME="left-margin:0-1"></A>
+Not empty</P>
+<OL>
+        <LI><P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::2"></A><A NAME="left-margin:1270-"></A>
+        Not empty</P>
+</OL>
+<P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::3"></A><A NAME="left-margin:0-2"></A>
+<BR>
+</P>
+<OL START=2>
+        <LI><P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::4"></A><A NAME="left-margin:1270-1"></A>
+        Not empty</P>
+</OL>
+</BODY>
+</div>
+
+<div id="OOCodeWithEmptyPars-out">
+<BODY LANG="en-US" DIR="LTR">
+<P STYLE="margin-bottom: 0in">Not empty</P>
+
+<P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::1"></A><A NAME="left-margin:0-1"></A>
+Not empty</P>
+<OL>
+        <LI><P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::2"></A><A NAME="left-margin:1270-"></A>
+        Not empty</P>
+</OL>
+
+<OL START=2>
+        <LI><P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::4"></A><A NAME="left-margin:1270-1"></A>
+        Not empty</P>
+</OL>
+</BODY>
+</div>
+
+
+</body>
+</html>
