@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>QUnit basic example</title>
+  <title>WordDown Tests</title>
   <link rel="stylesheet" href="/resources/qunit-1.11.0.css">
 </head>
 <body>
@@ -12,17 +12,53 @@
  <script src="/tools/w2html5/jquery-1.6.4.js"></script>
  <script src="/tools/w2html5/w2html5.js"></script>
   <script>
+   function toHtml(node) {
+  return(node.html().replace(/\s+/g, " "));
+  }
 
 
-   test ("Remove empty pars from OO document", function () {
+   test("Remove empty pars from OO document", function () {
 	var w2h = word2HML5Factory($);
-        console.log(w2h);
 	var hasEmpties = $("div#OOCodeWithEmptyPars-in");
 	var noEmpties = $("div#OOCodeWithEmptyPars-out");
 	w2h.removeEmpties(hasEmpties);
-	equal(hasEmpties.html(), noEmpties.html(), "Empty OpenOffice paras should be removed");
+	equal(toHtml(hasEmpties), toHtml(noEmpties), "Empty OpenOffice paras should be removed");
    });
+
+
+   test("Check left margin code", function() {
+       //OpenOffice docs need to be pre-processed to add left-margin info to a bookmark
+       //Word docs use the browser's rendering engine. These tests are using OO version of the docs
+       //as the Word versions are not very atomic - they need to have all the CSS etc in place to work
+	var w2h = word2HML5Factory($);
+	var html = $("div#OOCodeWithNegativeHeadingIndent").clone();
+	heading = html.find("h1");
+	w2h.getLeftMargin(heading);
+	equal("-1000", heading.attr("data-margin-left"), "Heading had negative indent");
+	par = html.find("p:first");
+	w2h.getLeftMargin(par);
+	equal(par.get(0).outerHTML,"<p style=\"margin-bottom: 0in\" data-margin-left=\"501\"><a name=\"style:Standard :::\"></a>Checking minimum indent works.</p>","Anchor has been removed");
+
+   });
+
+
+
+ test("Check minimum left-indent & data attributes", function() {
+        //This code is not written in a way that makes true unit testing possible, so these are more like regression tests
+	//TODO - add lots more that test all the edge cases, eg lists in lists, lists adjacent to other lists etc.
+	var w2h = word2HML5Factory($);
+	var html = $("div#OOCodeWithNegativeHeadingIndent").clone();
+	var newHtml = $("div#OOCodeWithNegativeHeadingIndentWithDataAtts").clone()
+	equal(w2h.getBaselineIndentAndDataAtts(html), "501", "Ignores heading indent uses least indent from a paragraph");
+	equal(html.html(), newHtml.html(), "Lists removed, data attributes added for class and left-margin, anchors removed");
+	
+   });
+
+
+
   </script>
+
+
 
 
 <div id="OOCodeWithEmptyPars-in">
@@ -33,13 +69,11 @@
 </P>
 <P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::1"></A><A NAME="left-margin:0-1"></A>
 Not empty</P>
+<P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::3"></A><A NAME="left-margin:0-2"></A><BR><BR><IMG SRC="data:image/gif;base64,R0lGODlhyAAiALM...DfD0QAADs="></P>
 <OL>
         <LI><P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::2"></A><A NAME="left-margin:1270-"></A>
         Not empty</P>
 </OL>
-<P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::3"></A><A NAME="left-margin:0-2"></A>
-<BR>
-</P>
 <OL START=2>
         <LI><P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::4"></A><A NAME="left-margin:1270-1"></A>
         Not empty</P>
@@ -53,6 +87,7 @@ Not empty</P>
 
 <P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::1"></A><A NAME="left-margin:0-1"></A>
 Not empty</P>
+<P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::3"></A><A NAME="left-margin:0-2"></A><BR><BR><IMG SRC="data:image/gif;base64,R0lGODlhyAAiALM...DfD0QAADs="></P>
 <OL>
         <LI><P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::2"></A><A NAME="left-margin:1270-"></A>
         Not empty</P>
@@ -65,6 +100,88 @@ Not empty</P>
 </BODY>
 </div>
 
+<div id="OOCodeWithNegativeHeadingIndent">
+<BODY LANG="en-AU" TEXT="#000000" DIR="LTR">
+<H1 CLASS="western"><A NAME="style:Heading 1 :::"></A><A NAME="left-margin:-1000:::"></A>
+WordDown Test doc</H1>
+<P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::"></A><A NAME="left-margin:501:::"></A>Checking minimum indent works.</P>
+<P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::1"></A><A NAME="left-margin:501:::1"></A>
+<BR>
+</P>
+<P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::2"></A><A NAME="left-margin:501:::2"></A><A NAME="_GoBack"></A>
+Have changed Normal to be indented a bit.</P>
+<P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::3"></A><A NAME="left-margin:501:::3"></A>
+<BR>
+</P>
+<P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::3"></A><A NAME="left-margin:501:::3"></A>
+<BR>
+</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0in"><A NAME="style:List Paragraph :::"></A><A NAME="left-margin:1771:::"></A>
+	List</P>
+	<UL>
+		<LI><P STYLE="margin-bottom: 0in"><A NAME="style:List Paragraph :::1"></A><A NAME="left-margin:3041:::"></A>
+		List</P>
+	</UL>
+	<LI><P STYLE="margin-bottom: 0in"><A NAME="style:List Paragraph :::2"></A><A NAME="left-margin:1771:::1"></A>
+	List</P>
+</UL>
+<P ALIGN=JUSTIFY STYLE="margin-bottom: 0in"><A NAME="style:Standard :::4"></A><A NAME="left-margin:501:::4"></A>
+Next is a quote</P>
+<P ALIGN=JUSTIFY STYLE="margin-left: 0.5in; margin-bottom: 0in"><A NAME="style:Standard :::5"></A><A NAME="left-margin:1270:::"></A>
+Quote</P>
+<UL>
+	<LI><P ALIGN=JUSTIFY STYLE="margin-bottom: 0in"><A NAME="style:List Paragraph :::3"></A><A NAME="left-margin:2540:::"></A>
+	With a list in it!</P>
+	<LI><P ALIGN=JUSTIFY STYLE="margin-bottom: 0in"><A NAME="style:List Paragraph :::4"></A><A NAME="left-margin:2540:::1"></A>
+	List in it</P>
+</UL>
+<P ALIGN=JUSTIFY STYLE="margin-left: 0.5in; margin-bottom: 0in"><A NAME="style:Standard :::6"></A><A NAME="left-margin:1270:::1"></A>
+More quote</P>
+<P STYLE="margin-bottom: 0in"><A NAME="style:Standard :::7"></A><A NAME="left-margin:501:::	5"></A>
+Back to Normal</P>
+</BODY>
+</div>
+
+<div id="OOCodeWithNegativeHeadingIndentWithDataAtts">
+<body>
+<h1 class="Heading 1" data-type="h" data-headinglevel="2" data-margin-left="-1000">
+WordDown Test doc</h1>
+<p style="margin-bottom: 0in" data-type="p" class="Standard" data-margin-left="501">Checking minimum indent works.</p>
+<p style="margin-bottom: 0in" data-type="p" class="Standard" data-margin-left="501">
+<br>
+</p>
+<p style="margin-bottom: 0in" data-type="p" class="Standard" data-margin-left="501"><a name="_GoBack"></a>
+Have changed Normal to be indented a bit.</p>
+<p style="margin-bottom: 0in" data-type="p" class="Standard" data-margin-left="501">
+<br>
+</p>
+
+	<p style="margin-bottom: 0in" class="List Paragraph" data-listtype="b" data-type="li" data-margin-left="1771">
+	List</p>
+	
+		<p style="margin-bottom: 0in" class="List Paragraph" data-listtype="b" data-type="li" data-margin-left="3041">
+		List</p>
+	
+	<p style="margin-bottom: 0in" class="List Paragraph" data-listtype="b" data-type="li" data-margin-left="1771">
+	List</p>
+
+<p align="JUSTIFY" style="margin-bottom: 0in" data-type="p" class="Standard" data-margin-left="501">
+Next is a quote</p>
+<p align="JUSTIFY" style="margin-left: 0.5in; margin-bottom: 0in" data-type="p" class="Standard" data-margin-left="1270">
+Quote</p>
+
+	<p align="JUSTIFY" style="margin-bottom: 0in" class="List Paragraph" data-listtype="b" data-type="li" data-margin-left="2540">
+	With a list in it!</p>
+	<p align="JUSTIFY" style="margin-bottom: 0in" class="List Paragraph" data-listtype="b" data-type="li" data-margin-left="2540">
+	List in it</p>
+
+<p align="JUSTIFY" style="margin-left: 0.5in; margin-bottom: 0in" data-type="p" class="Standard" data-margin-left="1270">
+More quote</p>
+<p style="margin-bottom: 0in" data-type="p" class="Standard" data-margin-left="501">
+Back to Normal</p>
+</body>
+</div>
 
 </body>
 </html>

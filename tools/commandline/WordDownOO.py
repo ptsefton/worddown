@@ -5,6 +5,7 @@ import re
 from unohelper import Base, systemPathToFileUrl, absolutize
 from os import getcwd
 import os.path
+import base64
 import urllib
 from com.sun.star.beans import PropertyValue
 from com.sun.star.uno import Exception as UnoException
@@ -25,8 +26,7 @@ def compileListInfo(doc):
 	#used to work out left margin on paragraphs that are inside list structures
 	c =  doc.NumberingRules.Count
 	lists = dict()
-	for ruleNum in range(0 , c ):
-	
+	for ruleNum in range(0,c):
 		numberingRule = doc.NumberingRules.getByIndex(ruleNum)
 		listId = numberingRule.DefaultListId
 		lists[listId] = []
@@ -42,8 +42,13 @@ def addBookmarks(doc,lists):
 	#Add bookmarks to all paras with left-margin and style info
 	#because save as HTML does a terrible job with list embedding 
 	#and does not export style information
+
+        paragraphEnum = doc.Text.createEnumeration()
 	curs = doc.Text.createTextCursor()
-	while curs.gotoNextParagraph(False): 
+ 
+	while paragraphEnum.hasMoreElements():
+	        para = paragraphEnum.nextElement() 
+   		curs.gotoRange(para.Anchor,False)
 		left = curs.ParaLeftMargin
 		lid = curs.ListId
 		if lid <> "":
@@ -53,12 +58,13 @@ def addBookmarks(doc,lists):
 			left = lists[lid][level]["IndentAt"]
 		#print "LeftMargin %s" % str(left)
 		b1 = doc.createInstance("com.sun.star.text.Bookmark")
-		b1.setName("left-margin:%s-" % str(left))
+		b1.setName("left-margin:%s:::" % str(left))
 
 		doc.Text.insertTextContent(curs,b1,False)
 		b2 = doc.createInstance("com.sun.star.text.Bookmark")
-		b2.setName("style:%s :::" % curs.ParaStyleName)
-		doc.Text.insertTextContent(curs,b2,False)		
+		b2.setName("style:%s:::" % curs.ParaStyleName)
+		doc.Text.insertTextContent(curs,b2,False)
+		curs.gotoNextParagraph(False)		
 
 def main():
     retVal = 0
@@ -67,9 +73,10 @@ def main():
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hc:",
-            ["help", "connection-string=" ,  "pdf", "noWordDown"])
+            ["help", "connection-string=" ,  "pdf", "noWordDown", "dataURIs"])
         url = "uno:socket,host=localhost,port=2002;urp;StarOffice.ComponentContext"
         wordDown = True #default to nice clean HTML
+	dataURIs = False
         for o, a in opts:
             if o in ("-h", "--help"):
                 usage()
@@ -82,7 +89,8 @@ def main():
 
 	    if o == "--noWordDown":
 		wordDown = False
-	
+	    if o == "--dataURIs":
+		dataURIs = True
                 
         if not len(args):
             usage()
@@ -130,10 +138,17 @@ def main():
 		doc.storeToURL(destUrl, outProps)
 		if wordDown:
 			command = ["phantomjs","render.js", destUrl, dest ] 
-			print command
-			print subprocess.check_output(command)
-		
-		
+			subprocess.check_output(command)
+		def getData(match):
+			imgPath = os.path.join(path,filestem,match.group(2))
+			imgData = base64.b64encode(open(imgPath).read())
+			mime = "image/png";
+			return "%sdata:%s;base64,%s%s" % (match.group(1), mime, imgData, match.group(3))
+
+		if dataURIs:
+			html = open(dest, "r").read()
+			html = re.sub('(<img.*?src=")(.*?)(".*?>)',getData, html)
+			open(dest, "w").write(html)
             except IOException, e:
                 sys.stderr.write( "Error during conversion: " + e.Message + "\n" )
                 retVal = 1
@@ -150,7 +165,6 @@ def main():
         sys.stderr.write( str(e) + "\n" )
         usage()
         retVal = 1
-
     sys.exit(retVal)
     
 def usage():
@@ -158,6 +172,7 @@ def usage():
                   "       [-c <connection-string> | --connection-string=<connection-string>\n"+
 		  "       [--pdf]\n"+
 		  "       [--noWordDown]\n"+
+                  "       [--dataURIs]\n" + 
                   "       file1 file2 ...\n"+
                   "\n" +
                   "Exports documents as HTML, and runs them through WordDown to clean them up\n" +

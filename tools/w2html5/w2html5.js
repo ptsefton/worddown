@@ -32,8 +32,8 @@ _get = function(url, callback) {
 
 function word2HML5Factory(jQ) {
     classNames = {};
-	word2html = {};
-	config = {};
+    word2html = {};
+    config = {};
     config.preFontMatch = /(courier)|(monospace)/i;
 	//ICE convention is to hide styles begining with z in HTML
 	//UKOLN use "Cover" for things we really only need in print
@@ -53,7 +53,7 @@ function word2HML5Factory(jQ) {
 		
 	]		
 	
-     
+    
 
 
 	function stateFactory(topLevelContainer, leastIndent) {
@@ -202,36 +202,72 @@ function word2HML5Factory(jQ) {
 		jQ(element).removeAttr("style");
 		jQ(element).removeAttr("class");
 	}
-   	function processparas() {
+
+ function processparas() {
 	  //Always wrap carefully
 	  var container = jQ("<article>  </article>")	   
-	  processpara(jQ("body"), container);
+	  reformatChunk(jQ("body"), container);
       
 	  jQ("td, th").each(function() {
-		 processpara(jQ(this), jQ('this'));
+		 reformatChunk(jQ(this), jQ('this'));
 	  });
 	
-        }
+ }
+ function removeLineBreaks(text) {
+		return text.replace(/(\r\n|\n|\r)/gm," ");
+	  }
+	
+function addLineBreaks(text) {
+		return text.replace(/(\r\n|\n|\r)/gm,"\\n");
+	  }
 
-  function removeLineBreaks(text) {
-	return text.replace(/(\r\n|\n|\r)/gm," ");
-  }
+ function getLeftMargin(el) {
+		//Sets a data attribute with the left margin : data-margin-left
 
-  function addLineBreaks(text) {
-	return text.replace(/(\r\n|\n|\r)/gm,"\\n");
-  }
+		//Don't do this if it has already been done
+		if (!el.attr("data-margin-left")) {
+			//Look for OpenOffice hack data
+			var marginAnchor = el.find("a[name^='left-margin:']")
+			if (marginAnchor.length) {
+				marginString = marginAnchor.attr("name");
+				marginString = marginString.replace("left-margin:","");
+				marginString = marginString.replace(/:::.*/,"");
+				marginAnchor.remove();
+				el.attr("data-margin-left",marginString);
+			} 
+			else { //Not provided so use browser rendering
+				el.attr("data-margin-left",parseFloat(el.offset().left));
+			}
+		}
+	}
+
+ function getClass(el) {
+	//In Word docs the class will be there, in OpenOffice docs it has to be pre-processed
+        //and stashed in a bookmark
+	var classAnchor = el.find("a[name^='style:']")
+	if (classAnchor.length) {
+		classString = classAnchor.attr("name");
+		classString = classString.replace("style:","");
+		classString = classString.replace(/ :::.*/,"");
+		classAnchor.remove();
+		el.attr("class",classString);
+	} 
+	return  el.attr("class") ? String(el.attr("class")) : "";
+}
 
    function getType(el) {
-		//el.attr("data-margin-left",parseFloat(el.css("margin-left")));
-		el.attr("data-margin-left",parseFloat(el.offset().left));
+		
+		//Default to plain P
 		el.attr("data-type", "p");
-		var classs =  el.attr("class") ? String(el.attr("class")) : "";
+
+
+		var classs = getClass(el);
                 //Look up the list we parsed out of CSS earlier
 		if (classs in classNames) {
 			classs = classNames[classs];
 		}
 		
-		//el.attr("data-class", classs);
+		//Microformat for RDFa generation TOTO: test
 		if (classs.search(/-(itemprop|property)$/) > -1) {
 		    var prop = el.find("a").attr("href");
 			el.find("a *:first").unwrap();
@@ -257,6 +293,8 @@ function word2HML5Factory(jQ) {
 				el.attr("data-type", "pre");
 				return;
 		}
+
+
 		//HTML headings
 		var nodeName = el.get(0).nodeName;
 		if (nodeName.search(/H\d/) == 0) {
@@ -329,21 +367,19 @@ function word2HML5Factory(jQ) {
 		
 		
    }
-   
-   function processpara(node, container) {
-	
-	if (jQ(this).get(0).nodeName === 'TABLE') {
-		state.getCurrentContainer().append(jQ(this));
-		return;
-	}
-	  //Get baseline indent
-	var leastIndent = 10000;
+
+function getBaselineIndentAndDataAtts(node) {
+	//Find minimum left indent in a set of elements
+	//To do this, also works out what type each paragraph is
+	//So we end up with data attributes on all paragraphs/headings ready to reformat
+	var leastIndent = 10000; //Silly large number
 	
 	node.children("p, h1, h2, h3, h4, h5").each(
-		function (index) {			
+		function (index) {
 			getType(jQ(this));	
-			
-			if (jQ(this).attr("data-margin-left")) {
+			getLeftMargin(jQ(this));		
+	
+			if (jQ(this).attr("data-margin-left") && (jQ(this).attr("data-type") != "h")  ) {
 				var indent = parseFloat(jQ(this).attr("data-margin-left"));
 				if (indent < leastIndent) {
 					leastIndent = indent;
@@ -351,17 +387,39 @@ function word2HML5Factory(jQ) {
 			}
 		}
 	);
+	flattenLists(node);
+        return leastIndent;
 
-	//Flatten lists (Not sure if word ever nests them?)
-	//Seems to be Word for mac that does adds lists (TODO: test this again when I figure out how to make Word put in lists)
+}
+   function flattenLists(node) {
+   //Word sometimes adds lists
+   //OpenOffice always adds lists but their indenting and nesting is always wrong
+   //So rip out all the lists and rebuild based on paragraph left margin,
+   //wiki-markup style
+
 	node.find("ul,ol").each(
 		function() {
 			var list = jQ(this)
-			var listType = list.attr("type");
+			var listType;
+			if (this.nodeName === "UL") {
+				listType = "b";	
+			}
+			else {
+				listType = list.attr("type"); //TODO deal with undefined here
+
+			}
+
+			//Sometimes Word puts <p> in <li>, sometimes not
+			//So normalise this to always have p
+	 		list.find("li:not(:has(p))").each(function() {
+				jQ(this).children().wrap("<p> </p>");
+
+			});
 			list.find("li p").each(function(){
+					getClass(jQ(this));
 					jQ(this).attr("data-listType",listType);
 					jQ(this).attr("data-type","li");
-					jQ(this).attr("data-margin-left", parseFloat(jQ(this).offset().left));
+					getLeftMargin(jQ(this));
 					if (jQ(this).parent("li").length) {
 						jQ(this).unwrap();
 					}
@@ -371,11 +429,32 @@ function word2HML5Factory(jQ) {
 
 		}
 	);
-	
+
+}
+
+   function removeTempDataAttributes(node) {
+	node.removeAttr("data-headingLevel");
+	node.removeAttr("data-listType");
+	node.removeAttr("data-class");
+	node.removeAttr("data-type");
+	node.removeAttr("data-margin-left");
+	}
+   
+
+
+   function reformatChunk(node, container) {
+	var leastIndent = getBaselineIndentAndDataAtts(node);
+	var state = stateFactory(container, leastIndent);
+
+	//TODO Does this ever run????
+	if (jQ(this).get(0).nodeName === 'TABLE') {
+		state.getCurrentContainer().append(jQ(this));
+		return;
+	}
 	
 
 	//Main formatting code 
-	var state = stateFactory(container, leastIndent);
+	
 	node.children().each(function (index) {
 	
 		var type = jQ(this).attr("data-type");
@@ -393,10 +472,8 @@ function word2HML5Factory(jQ) {
 			if (jQ(this).parents("table").length) {
 			   //TODO - Make this slide handling much more general-purpose
                            // Need a convention for making a one-cell table that is just there to create a section/slide etc 
-
-	
 			   if (classs == "Slide") {
-					
+					//Slide microformat
 					var title = jQ(this).parents("table").first().attr("title");
 					jQ(this).parents("table").first().attr("title","Slide: " + title);
 				
@@ -404,7 +481,7 @@ function word2HML5Factory(jQ) {
 			}
 		        else {
 		   	state.setHeadinglevel(headingLevel);
-			state.headingLevelDown(); //unindent where necessary
+			state.headingLevelDown(); //unindent container elements where necessary
 			
 			
 			if (headingLevel == "1") {
@@ -417,11 +494,9 @@ function word2HML5Factory(jQ) {
 			if (state.headingNestingNeeded()){        
 				var newSection = jQ("<section></section>");
 				if (classs.indexOf("typeof-") === 0) {
-					
 					newSection.attr("typeof",classs.replace(/^typeof-/,""));
 				}
 				state.pushHeadingState(newSection);
-				
 				}
 			}
 			
@@ -530,12 +605,8 @@ function word2HML5Factory(jQ) {
 			}	
 			
 			}
-		//Temp data attributes can go now
-		jQ(this).removeAttr("data-headingLevel");
-		jQ(this).removeAttr("data-listType");
-		jQ(this).removeAttr("data-class");
-		jQ(this).removeAttr("data-type");
-		jQ(this).removeAttr("data-margin-left")
+		removeTempDataAttributes(jQ(this));
+
 		}
 		  
 
@@ -583,15 +654,28 @@ function word2HML5Factory(jQ) {
 	el.removeAttr("class");
    }
 
+function removeEmpties(doc) {
+	//Remove Empty paragraphs and 
+	while (doc.find("p:empty, spans:empty").length) {
+		doc.find("p:empty, spans:empty").remove();
+	}
+	//OpenOffice uses <p><br></p>
+	doc.find("p:has(br)").not(doc.find("p:has(img)")).each(function(){
+		if(/^\s+$/.test(jQ(this).text())) {
+			jQ(this).remove();
+		}
+	});
+	
+}
+
 function convert() {
     jQ("o\\:p, meta[name], object").remove();
 	while (jQ("o:SmartTagType").length){ 
 		jQ("o:SmartTagType *").first().unwrap();
 	}
 	//jQ("hr").parent().remove();
-	while (jQ("p:empty, spans:empty").length) {
-		jQ("p:empty, spans:empty").remove();
-	}
+
+ 	removeEmpties(jQ("body"));
 	
 	jQ("p[class^='MsoToc']").remove();
 	
@@ -616,8 +700,8 @@ function convert() {
 	jQ("head").html(loseWordMongrelMarkup(jQ("head").html()));
 
 	jQ("body").html(loseWordMongrelMarkup(jQ("body").get(0).innerHTML));
-    //console.log(jQ("body").html());
-	//Get rid of the worst of the embedded stuff
+   
+	//Get rid of the worst of the embedded stuff from Word
 	jQ("xml").remove();
 	
 	
@@ -641,7 +725,7 @@ function convert() {
         //TODO - generalise this to work with other vocabs - eg lists 
 	jQ("table[title^='Slide:']").each(function() {
 	   
-		var paras = jQ(this).find("td th").children();
+		var paras = jQ(this).find("td, th").children();
 		var slide = jQ("<section typeof='http://purl.org/ontology/bibo/Slide' >");
 		jQ(this).replaceWith(slide);
 		paras.appendTo(slide);
@@ -729,7 +813,7 @@ function convert() {
 	html.removeAttr("xmlns:o");
 	html.removeAttr("xmlns:w");
 	html.removeAttr("xmlns:m");
-    body = html.find("body");
+        body = html.find("body");
 	body.removeAttr("link");
 	body.removeAttr("vlink");
 	jQ("head").html("");
@@ -752,7 +836,7 @@ function convert() {
 	});
 	
 	jQ("style").remove();
-//TODO - probably want to lose this, was part of the HTML5 project	
+	//TODO - probably want to lose this, was part of the HTML5 project	
 
 	//Deal with hidden stuff, particularly embedded JSON from Zotero
 	jQ("span[class='mso-conditional']").each(function() {
@@ -855,9 +939,11 @@ function convert() {
 
 	});
 	//TODO make this configurable
-	jQ("span[lang^='EN']").each(function(i) {$(this).replaceWith($(this).html()	)});
-	
-	var unwantedSpans = "span[class='SpellE'], span[class='GramE'], span[style], span[data]";
+	//jQ.find("span[lang^='EN']").each(function() {jQ(this).replaceWith(jQ(this).html())});
+	//jQ.find("font").each(function() {jQ(this).replaceWith(jQ(this).html())});
+
+	//TODO move to general cleanup function
+	var unwantedSpans = "span[class='SpellE'], span[class='GramE'], span[style], span[data], font";
 	while (jQ(unwantedSpans).length) {
 		jQ(unwantedSpans).each(function(i) {jQ(this).replaceWith(jQ(this).html())});
 	}
@@ -866,9 +952,15 @@ function convert() {
 	 	
    }
    word2html.convert = convert;
+
+
    word2html.config = config;
   
-   
+   //tests
+   word2html.removeEmpties = removeEmpties;
+   word2html.getBaselineIndentAndDataAtts = getBaselineIndentAndDataAtts;
+   word2html.getType = getType;
+   word2html.getLeftMargin = getLeftMargin;
    return word2html;
 }
 
