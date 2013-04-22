@@ -133,12 +133,15 @@ def main():
 		(path, filename) = os.path.split(path)
 		(filestem, ext) = os.path.splitext(filename)
 		dest = os.path.join(path, filestem, filestem + "." + extension)
+		wordDownDest = os.path.join(path, filestem +  "." + extension);
 		destUrl = systemPathToFileUrl(dest)
 		sys.stderr.write(destUrl + "\n")
 		doc.storeToURL(destUrl, outProps)
 		if wordDown:
-			command = ["phantomjs","render.js", destUrl, dest ] 
-			subprocess.check_output(command)
+			print "Before command"
+			command = ["phantomjs","render.js", destUrl, wordDownDest]
+			print subprocess.check_output(command)
+			print "after command"
 		def getData(match):
 			imgPath = os.path.join(path,filestem,match.group(2))
 			imgData = base64.b64encode(open(imgPath).read())
@@ -146,9 +149,11 @@ def main():
 			return "%sdata:%s;base64,%s%s" % (match.group(1), mime, imgData, match.group(3))
 
 		if dataURIs:
+			print "Doing data URIS"
 			html = open(dest, "r").read()
-			html = re.sub('(<img.*?src=")(.*?)(".*?>)',getData, html)
-			open(dest, "w").write(html)
+			html = re.sub('(<IMG.*?SRC=")(.*?)(".*?>)',getData, html)
+			open(wordDownDest, "w").write(html)
+			print "Done"
             except IOException, e:
                 sys.stderr.write( "Error during conversion: " + e.Message + "\n" )
                 retVal = 1
