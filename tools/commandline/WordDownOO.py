@@ -114,7 +114,6 @@ def main():
             destDir, outFilename = os.path.split(path)
 	(filestem, ext) = os.path.splitext(outFilename)
 	
-	
 	filterName = "HTML (StarWriter)"
         extension  = "html"
 	
@@ -155,7 +154,6 @@ def main():
 
 		
 		#Write to temp and copy out later
-		
                 tempDest = os.path.join(tempDir, filestem + "." + extension)
 		destUrl = systemPathToFileUrl(tempDest)
 		sys.stderr.write(destUrl + "\n")
@@ -165,13 +163,13 @@ def main():
 		
 		src_files = os.listdir(tempDir)
 	        for file_name in src_files:
-			
     			full_file_name = os.path.join(tempDir, file_name)
     			if (os.path.isfile(full_file_name)):
     			    shutil.copy(full_file_name, destDir)
 
 		if wordDown:
-			command = ["phantomjs","render.js", systemPathToFileUrl(dest), dest]
+			myPath, myFile  = os.path.split(os.path.abspath(__file__))
+			command = ["phantomjs",os.path.join(myPath, "render.js"), systemPathToFileUrl(dest), dest]
 			subprocess.check_output(command)
 		def getData(match):
 			imgPath = os.path.join(destDir,match.group(2))
