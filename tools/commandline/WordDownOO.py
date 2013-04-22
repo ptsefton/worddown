@@ -48,24 +48,26 @@ def addBookmarks(doc,lists):
 
         paragraphEnum = doc.Text.createEnumeration()
 	curs = doc.Text.createTextCursor()
- 
+
 	while paragraphEnum.hasMoreElements():
 	        para = paragraphEnum.nextElement() 
-   		curs.gotoRange(para.Anchor,False)
-		left = curs.ParaLeftMargin
-		lid = curs.ListId
-		if lid <> "":
-			level = curs.NumberingLevel
-			left = lists[lid][level]["IndentAt"]
+		try:
+   			curs.gotoRange(para.Anchor,False)
+			left = curs.ParaLeftMargin
+			lid = curs.ListId
+			if lid <> "":
+				level = curs.NumberingLevel
+				left = lists[lid][level]["IndentAt"]	
+			b1 = doc.createInstance("com.sun.star.text.Bookmark")
+			b1.setName("left-margin:%s:::" % str(left))
+			doc.Text.insertTextContent(curs,b1,False)
+			b2 = doc.createInstance("com.sun.star.text.Bookmark")
+			b2.setName("style:%s:::" % curs.ParaStyleName)
+			doc.Text.insertTextContent(curs,b2,False)
+			curs.gotoNextParagraph(False)
+		except:
+			pass #Must have been a table
 		
-		b1 = doc.createInstance("com.sun.star.text.Bookmark")
-		b1.setName("left-margin:%s:::" % str(left))
-
-		doc.Text.insertTextContent(curs,b1,False)
-		b2 = doc.createInstance("com.sun.star.text.Bookmark")
-		b2.setName("style:%s:::" % curs.ParaStyleName)
-		doc.Text.insertTextContent(curs,b2,False)
-		curs.gotoNextParagraph(False)		
 
 def main():
     retVal = 0
@@ -169,7 +171,7 @@ def main():
     			    shutil.copy(full_file_name, destDir)
 
 		if wordDown:
-			command = ["phantomjs","render.js", destUrl, dest]
+			command = ["phantomjs","render.js", systemPathToFileUrl(dest), dest]
 			subprocess.check_output(command)
 		def getData(match):
 			imgPath = os.path.join(destDir,match.group(2))
