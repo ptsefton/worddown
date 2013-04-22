@@ -1,5 +1,6 @@
 import getopt, sys
 import uno
+import mimetypes
 import subprocess
 import re
 from unohelper import Base, systemPathToFileUrl, absolutize
@@ -7,6 +8,8 @@ from os import getcwd
 import os.path
 import base64
 import urllib
+import tempfile
+import shutil
 from com.sun.star.beans import PropertyValue
 from com.sun.star.uno import Exception as UnoException
 from com.sun.star.io import IOException, XOutputStream
@@ -53,10 +56,8 @@ def addBookmarks(doc,lists):
 		lid = curs.ListId
 		if lid <> "":
 			level = curs.NumberingLevel
-			#print "Level %s" % str(level)
-			#print lid
 			left = lists[lid][level]["IndentAt"]
-		#print "LeftMargin %s" % str(left)
+		
 		b1 = doc.createInstance("com.sun.star.text.Bookmark")
 		b1.setName("left-margin:%s:::" % str(left))
 
@@ -73,12 +74,13 @@ def main():
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hc:",
-            ["help", "connection-string=" ,  "pdf", "noWordDown", "dataURIs"])
+            ["help", "connection-string=" ,  "pdf", "noWordDown", "dataURIs", "deleteOutputDir"])
         url = "uno:socket,host=localhost,port=2002;urp;StarOffice.ComponentContext"
         wordDown = True #default to nice clean HTML
 	dataURIs = False
+	deleteOutputDir = False
         for o, a in opts:
-            if o in ("-h", "--help"):
+            if o in ("-h", "--help"):	
                 usage()
                 sys.exit()
             if o in ("-c", "--connection-string"):
@@ -91,24 +93,45 @@ def main():
 		wordDown = False
 	    if o == "--dataURIs":
 		dataURIs = True
+	    if o == "--deleteOutputDir":
+		deleteOutputDir = True
                 
-        if not len(args):
+        if not len(args) or len(args) > 2:
             usage()
             sys.exit()
-              
+
+	path = args[0]
+	path = os.path.abspath(path)
+        if len(args) == 2:
+	    destDir = args[1]
+	    if not os.path.exists(destDir):
+		 os.makedirs(destDir)
+	    discardThis, outFilename = os.path.split(path)
+	else:
+	    outPath = path
+            destDir, outFilename = os.path.split(path)
+	(filestem, ext) = os.path.splitext(outFilename)
+	
+	
+	filterName = "HTML (StarWriter)"
+        extension  = "html"
+	
+	#Final HTML pathname
+	dest = os.path.join(destDir, filestem + "." + extension)
+	
+	tempDir = tempfile.mkdtemp()
         ctxLocal = uno.getComponentContext()
         smgrLocal = ctxLocal.ServiceManager
 
         resolver = smgrLocal.createInstanceWithContext(
-                 "com.sun.star.bridge.UnoUrlResolver", ctxLocal )
-        ctx = resolver.resolve( url )
+                 "com.sun.star.bridge.UnoUrlResolver", ctxLocal)
+        ctx = resolver.resolve(url)
         smgr = ctx.ServiceManager
 
         desktop = smgr.createInstanceWithContext("com.sun.star.frame.Desktop", ctx )
 
         cwd = systemPathToFileUrl( getcwd() )
-	filterName = "HTML (StarWriter)"
-        extension  = "html"
+
         outProps = (
             PropertyValue( "FilterName" , 0, filterName , 0 ),
 	    PropertyValue( "Overwrite" , 0, True , 0 ),
@@ -116,11 +139,10 @@ def main():
 	)
 	    
         inProps = PropertyValue( "Hidden" , 0 , True, 0 ),
-        for path in args:
-            try:
-		path = os.path.abspath(path)
+
+        try:
+		
 		fileUrl = systemPathToFileUrl(path)
-		print fileUrl
 		doc = desktop.loadComponentFromURL( fileUrl , "_blank", 0, inProps )
 		if not doc:
 			raise UnoException( "Couldn't open stream for unknown reason", None )
@@ -129,40 +151,48 @@ def main():
 		addBookmarks(doc, lists)
 
 
-
-		(path, filename) = os.path.split(path)
-		(filestem, ext) = os.path.splitext(filename)
-		dest = os.path.join(path, filestem, filestem + "." + extension)
-		wordDownDest = os.path.join(path, filestem +  "." + extension);
-		destUrl = systemPathToFileUrl(dest)
+		
+		#Write to temp and copy out later
+		
+                tempDest = os.path.join(tempDir, filestem + "." + extension)
+		destUrl = systemPathToFileUrl(tempDest)
 		sys.stderr.write(destUrl + "\n")
+		#Save as HTML
 		doc.storeToURL(destUrl, outProps)
+		#Copy dir TODO
+		
+		src_files = os.listdir(tempDir)
+	        for file_name in src_files:
+			
+    			full_file_name = os.path.join(tempDir, file_name)
+    			if (os.path.isfile(full_file_name)):
+    			    shutil.copy(full_file_name, destDir)
+
 		if wordDown:
-			print "Before command"
-			command = ["phantomjs","render.js", destUrl, wordDownDest]
-			print subprocess.check_output(command)
-			print "after command"
+			command = ["phantomjs","render.js", destUrl, dest]
+			subprocess.check_output(command)
 		def getData(match):
-			imgPath = os.path.join(path,filestem,match.group(2))
+			imgPath = os.path.join(destDir,match.group(2))
 			imgData = base64.b64encode(open(imgPath).read())
-			mime = "image/png";
+			os.remove(imgPath)
+			#TODO - proper mime type
+			mime, encoding = mimetypes.guess_type(imgPath)
 			return "%sdata:%s;base64,%s%s" % (match.group(1), mime, imgData, match.group(3))
 
 		if dataURIs:
-			print "Doing data URIS"
 			html = open(dest, "r").read()
-			html = re.sub('(<IMG.*?SRC=")(.*?)(".*?>)',getData, html)
-			open(wordDownDest, "w").write(html)
-			print "Done"
-            except IOException, e:
-                sys.stderr.write( "Error during conversion: " + e.Message + "\n" )
-                retVal = 1
-            except UnoException, e:
-                sys.stderr.write( "Error ("+repr(e.__class__)+") during conversion:" + e.Message + "\n" )
-                retVal = 1
-            if doc:
-                doc.dispose()
+			html = re.sub('(<IMG.*?SRC=")(.*?)(".*?>)',getData, html,flags=re.IGNORECASE)
+			open(dest, "w").write(html)
 
+
+        except IOException, e:
+      	  sys.stderr.write( "Error during conversion: " + e.Message + "\n" )
+      	  retVal = 1
+        except UnoException, e:
+      	  sys.stderr.write( "Error ("+repr(e.__class__)+") during conversion:" + e.Message + "\n" )
+      	  retVal = 1
+        if doc:
+      	  doc.dispose()
     except UnoException, e:
         sys.stderr.write( "Error ("+repr(e.__class__)+") :" + e.Message + "\n" )
         retVal = 1
@@ -178,7 +208,7 @@ def usage():
 		  "       [--pdf]\n"+
 		  "       [--noWordDown]\n"+
                   "       [--dataURIs]\n" + 
-                  "       file1 file2 ...\n"+
+                  "       inputFile [outputDir]\n"+
                   "\n" +
                   "Exports documents as HTML, and runs them through WordDown to clean them up\n" +
                   "Requires an OpenOffice.org instance to be running. The script and the\n"+
@@ -189,11 +219,14 @@ def usage():
                   "-c <connection-string> | --connection-string=<connection-string>\n" +
                   "        The connection-string part of a uno url to where the\n" +
                   "        the script should connect to in order to do the conversion.\n" +
-                  "        The strings defaults to socket,host=localhost,port=2002\n"
-                  "--noWordDown \n"
-                  "        Do not run WordDown javascript code\n"
-                  "--pdf \n"
-                  "        Export PDF as well as HTML (TODO)\n"
+                  "        The strings defaults to socket,host=localhost,port=2002\n" +
+                  "--noWordDown \n" +
+                  "        Do not run WordDown javascript code\n" +
+                  "--pdf \n" +
+                  "        Export PDF as well as HTML (TODO)\n" +
+		  " --dataURIs \n "+
+                  "         Convert images to Data URIs embedded in the HTML"
+		  
                   )
 
 main()    
