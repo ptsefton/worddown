@@ -76,11 +76,12 @@ def main():
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hc:",
-            ["help", "connection-string=" ,  "pdf", "noWordDown", "dataURIs", "deleteOutputDir"])
+            ["help", "connection-string=" ,  "pdf", "noWordDown", "dataURIs", "deleteOutputDir", "epub"])
         url = "uno:socket,host=localhost,port=2002;urp;StarOffice.ComponentContext"
         wordDown = True #default to nice clean HTML
 	dataURIs = False
 	deleteOutputDir = False
+	epub = False
         for o, a in opts:
             if o in ("-h", "--help"):	
                 usage()
@@ -97,6 +98,8 @@ def main():
 		dataURIs = True
 	    if o == "--deleteOutputDir":
 		deleteOutputDir = True
+	    if o == "--epub":
+		epub = True
                 
         if not len(args) or len(args) > 2:
             usage()
@@ -171,6 +174,11 @@ def main():
 			myPath, myFile  = os.path.split(os.path.abspath(__file__))
 			command = ["phantomjs",os.path.join(myPath, "render.js"), systemPathToFileUrl(dest), dest]
 			subprocess.check_output(command)
+		if epub:
+			epubDest = os.path.join(destDir, filestem + ".epub")
+			command = ["ebook-convert", dest, epubDest]
+			subprocess.check_output(command)
+
 		def getData(match):
 			imgPath = os.path.join(destDir,match.group(2))
 			imgData = base64.b64encode(open(imgPath).read())
@@ -225,7 +233,9 @@ def usage():
                   "--pdf \n" +
                   "        Export PDF as well as HTML (TODO)\n" +
 		  " --dataURIs \n "+
-                  "         Convert images to Data URIs embedded in the HTML"
+                  "        Convert images to Data URIs embedded in the HTML" +
+		  " --epub\n" + 
+		  "	   Make an EPUB ebook (using Calibre ebook-convert)"
 		  
                   )
 
