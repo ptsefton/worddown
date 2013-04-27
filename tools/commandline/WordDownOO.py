@@ -13,6 +13,8 @@ import shutil
 from com.sun.star.beans import PropertyValue
 from com.sun.star.uno import Exception as UnoException
 from com.sun.star.io import IOException, XOutputStream
+from lxml import etree
+
 
 class OutputStream( Base, XOutputStream ):
     def __init__( self ):
@@ -46,28 +48,106 @@ def addBookmarks(doc,lists):
 	#because save as HTML does a terrible job with list embedding 
 	#and does not export style information
 
-        paragraphEnum = doc.Text.createEnumeration()
-	curs = doc.Text.createTextCursor()
+  	curs = doc.Text.createTextCursor()
+	hasNext = True;
+        while hasNext:
+                left = curs.ParaLeftMargin
+                lid = curs.ListId
+                if lid <> "":
+                        level = curs.NumberingLevel
+                        #print "Level %s" % str(level)
+                        #print lid
+                        left = lists[lid][level]["IndentAt"]
+                #print "LeftMargin %s" % str(left)
+                b1 = doc.createInstance("com.sun.star.text.Bookmark")
+                b1.setName("left-margin:%s-" % str(left))
 
-	while paragraphEnum.hasMoreElements():
-	        para = paragraphEnum.nextElement() 
-		try:
-   			curs.gotoRange(para.Anchor,False)
-			left = curs.ParaLeftMargin
-			lid = curs.ListId
-			if lid <> "":
-				level = curs.NumberingLevel
-				left = lists[lid][level]["IndentAt"]	
-			b1 = doc.createInstance("com.sun.star.text.Bookmark")
-			b1.setName("left-margin:%s:::" % str(left))
-			doc.Text.insertTextContent(curs,b1,False)
-			b2 = doc.createInstance("com.sun.star.text.Bookmark")
-			b2.setName("style:%s:::" % curs.ParaStyleName)
-			doc.Text.insertTextContent(curs,b2,False)
-			curs.gotoNextParagraph(False)
-		except:
-			pass #Must have been a table
+                doc.Text.insertTextContent(curs,b1,False)
+                b2 = doc.createInstance("com.sun.star.text.Bookmark")
+                b2.setName("style:%s :::" % curs.ParaStyleName)
+                doc.Text.insertTextContent(curs,b2,False)    
+		hasNext = curs.gotoNextParagraph(False)
+
+
+
+
+class Styles():	
+    def __init__(self, odfZip):
+	self._styles = dict()
+	self._readParaStyles(odfZip.open("styles.xml"))
+	self._readParaStyles(odfZip.open("content.xml"))
+	self._listStyles = dict()
+	self._readListStyles(odfZip.open("styles.xml"))
+
+    def _readParaStyles(self, styleFile):
+        self._stylesDoc = etree.parse(styleFile)
+	styleElementName =  "{urn:oasis:names:tc:opendocument:xmlns:style:1.0}style"
+	styleNameAttributeName =  "{urn:oasis:names:tc:opendocument:xmlns:style:1.0}name"
+	styleParentAttributeName = "{urn:oasis:names:tc:opendocument:xmlns:style:1.0}parent-style-name"
+	styleParagraphPropertiesElementName = "{urn:oasis:names:tc:opendocument:xmlns:style:1.0}paragraph-properties"
+	marginAttributeName = "{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}margin-left"
+	styleRoot = self._stylesDoc.getroot()
+	for styleElement in styleRoot.iter(styleElementName):
+		style = dict()
+		style["name"] = styleElement.get(styleNameAttributeName)
+		style["parent"] = styleElement.get(styleParentAttributeName)
+		style["margin-left"] = None
+		for p in styleElement.iter(styleParagraphPropertiesElementName):
+		    style["margin-left"] = p.get(marginAttributeName)
 		
+		self._styles[style["name"]] = style
+
+    def _readListStyles(self, styleFile):
+        self._listStylesDoc = etree.parse(styleFile)
+	print "Reading list styles"
+	styleElementName =  "{urn:oasis:names:tc:opendocument:xmlns:text:1.0}list-style"
+	styleNameAttributeName =  "{urn:oasis:names:tc:opendocument:xmlns:style:1.0}name"
+	listLevelAttributeName =  "{urn:oasis:names:tc:opendocument:xmlns:text:1.0}level"
+	marginAttributeName = "{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}margin-left"
+	aligmentElementName =  "{urn:oasis:names:tc:opendocument:xmlns:style:1.0}list-level-label-alignment"
+	marginAttributeName = "{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}margin-left"
+	
+	styleRoot = self._listStylesDoc.getroot()
+	for styleElement in styleRoot.iter(styleElementName):
+		style = dict()
+		style["name"] = styleElement.get(styleNameAttributeName)
+		style["levels"] = dict()
+		for l in styleElement.xpath("*"):
+		    thisLevel = dict()
+		    levelNum = l.get(listLevelAttributeName)
+		    print levelNum
+		    for a in l.iter(aligmentElementName):
+			thisLevel["margin-left"] = a.get(marginAttributeName)
+		    style[levelNum] = thisLevel
+		
+		self._listStyles[style["name"]] = style
+
+
+    def getListMarginLeft(self, someStyle, level):
+	level = str(level)
+	if self._listStyles.has_key(someStyle) and self._listStyles[someStyle].has_key(level):
+		return self._listStyles[someStyle][level]["margin-left"]
+	else:
+		return 0 #TODO Not sure if this is best
+	
+    def getParaMarginLeft(self, someStyle):
+	if self._styles.has_key(someStyle):
+		margin = self._styles[someStyle]["margin-left"]
+		parent = self._styles[someStyle]["parent"]
+		if  margin <> None:
+			return margin
+		elif parent <> None:
+			return self.getParaMarginLeft(parent)
+		else:
+			return "0"	
+		
+			
+	else:
+		return "0"
+		
+   	 
+    
+	
 
 def main():
     retVal = 0
@@ -239,4 +319,4 @@ def usage():
 		  
                   )
 
-main()    
+#main()    
