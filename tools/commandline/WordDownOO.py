@@ -306,7 +306,8 @@ def main():
 			subprocess.check_output(command)
 
 		def getData(match):
-			imgPath = os.path.join(destDir,match.group(2))
+			imgName = urllib.unquote(match.group(2))
+			imgPath = os.path.join(destDir,imgName)
 			imgData = base64.b64encode(open(imgPath).read())
 			os.remove(imgPath)
 			#TODO - proper mime type
