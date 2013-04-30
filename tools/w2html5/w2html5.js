@@ -203,14 +203,20 @@ function word2HML5Factory(jQ) {
 		jQ(element).removeAttr("class");
 	}
 
- function processparas() {
-	  //Always wrap carefully
-	  var container = jQ("<article>  </article>")	   
-	  reformatChunk(jQ("body"), container);
-      
-	  jQ("td, th").each(function() {
-		 reformatChunk(jQ(this), jQ('this'));
+ function processparas(node) {
+	
+	  var container = jQ("<article></article>")	
+   	 //container.append(node)
+	 
+	 reformatChunk(node, container);
+	 
+   	 container.find("td, th").each(function() {
+		
+		 reformatChunk(jQ(this), jQ(this));
 	  });
+	  
+	node.prepend(container);
+	return node;
 	
  }
  function removeLineBreaks(text) {
@@ -397,16 +403,15 @@ function getBaselineIndentAndDataAtts(node) {
    //So rip out all the lists and rebuild based on paragraph left margin,
    //wiki-markup style
 
-	node.find("ul,ol").each(
+	node.children("ul,ol").each(
 		function() {
-			var list = jQ(this)
+			var list = jQ(this);
 			var listType;
 			if (this.nodeName === "UL") {
 				listType = "b";	
 			}
 			else {
 				listType = list.attr("type"); //TODO deal with undefined here
-
 			}
 
 			//Sometimes Word puts <p> in <li>, sometimes not
@@ -444,6 +449,7 @@ function getBaselineIndentAndDataAtts(node) {
 
    function reformatChunk(node, container) {
 	var leastIndent = getBaselineIndentAndDataAtts(node);
+	
 	var state = stateFactory(container, leastIndent);
 
 	//TODO Does this ever run????
@@ -462,10 +468,6 @@ function getBaselineIndentAndDataAtts(node) {
 		var listType = jQ(this).attr("data-listType");
 		var headingLevel = jQ(this).attr("data-headingLevel");
 		var classs = jQ(this).attr("data-class") ? jQ(this).attr("data-class") :  "";
-
-		if (index == 0)  {
-			jQ("body").prepend(state.getCurrentContainer());       
-		}	
 			
 		if (type === 'h') {
 			
@@ -608,9 +610,11 @@ function getBaselineIndentAndDataAtts(node) {
 		removeTempDataAttributes(jQ(this));
 
 		}
-		  
+		
 
 		)
+	
+	return node;
 	}
         
 
@@ -712,7 +716,7 @@ function convert() {
 	
 
 	
-	processparas();
+	processparas(jQ("body"));
 	
 	//Add Schema.org markup
 	jQ("table[summary^='(itemprop|property)']").each(function() {
@@ -961,6 +965,7 @@ function convert() {
    word2html.getBaselineIndentAndDataAtts = getBaselineIndentAndDataAtts;
    word2html.getType = getType;
    word2html.getLeftMargin = getLeftMargin;
+   word2html.processparas = processparas;
    return word2html;
 }
 

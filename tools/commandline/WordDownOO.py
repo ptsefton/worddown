@@ -14,6 +14,7 @@ from com.sun.star.beans import PropertyValue
 from com.sun.star.uno import Exception as UnoException
 from com.sun.star.io import IOException, XOutputStream
 from lxml import etree
+import zipfile
 
 
 class OutputStream( Base, XOutputStream ):
@@ -26,71 +27,84 @@ class OutputStream( Base, XOutputStream ):
     def flush( self ):
         pass
 
-def compileListInfo(doc):
-	#Get list structures in an dict, with a properties dict for each list level
-	#used to work out left margin on paragraphs that are inside list structures
-	c =  doc.NumberingRules.Count
-	lists = dict()
-	for ruleNum in range(0,c):
-		numberingRule = doc.NumberingRules.getByIndex(ruleNum)
-		listId = numberingRule.DefaultListId
-		lists[listId] = []
-		for i in range(0,numberingRule.Count):
-			lists[listId].append(dict())
-		
-			rule = numberingRule.getByIndex(i)
-			for prop in rule:
-				lists[listId][i][prop.Name] = prop.Value
-	return lists
-		
-def addBookmarks(doc,lists):
-	#Add bookmarks to all paras with left-margin and style info
-	#because save as HTML does a terrible job with list embedding 
-	#and does not export style information
-
-  	curs = doc.Text.createTextCursor()
-	hasNext = True;
-        while hasNext:
-                left = curs.ParaLeftMargin
-                lid = curs.ListId
-                if lid <> "":
-                        level = curs.NumberingLevel
-                        #print "Level %s" % str(level)
-                        #print lid
-                        left = lists[lid][level]["IndentAt"]
-                #print "LeftMargin %s" % str(left)
-                b1 = doc.createInstance("com.sun.star.text.Bookmark")
-                b1.setName("left-margin:%s-" % str(left))
-
-                doc.Text.insertTextContent(curs,b1,False)
-                b2 = doc.createInstance("com.sun.star.text.Bookmark")
-                b2.setName("style:%s :::" % curs.ParaStyleName)
-                doc.Text.insertTextContent(curs,b2,False)    
-		hasNext = curs.gotoNextParagraph(False)
 
 
+class Bookmarker():
+    #
+    def __init__(self, odfZip):
+	self._count = 0
+	self._ns = Namespaces()
+	self.pTag = "{%s}p" % self._ns.get("text")
+	self._listTag = "{%s}list" % self._ns.get("text")
+	self._styleNameAttributeName =  "{%s}style-name" % self._ns.get("text")
+	self.bookmarkTag = "{%s}bookmark" % self._ns.get("text")
+	self.bookmarkNameAttribute = "{%s}name" % self._ns.get("text")
+	self.styles = Styles(odfZip)
+	#Add bookmarks directly to content.xml with stylename and left margin
+        contentXml = etree.parse(odfZip.open("content.xml"))
+	#Exposing this for testing purposes
+        self.contentRoot = contentXml.getroot()
+	self._traverseDocAddingBookmarks(self.contentRoot)
+	odfZip.writestr("content.xml",etree.tostring(self.contentRoot))
+	odfZip.close()
+	
+    def _traverseDocAddingBookmarks(self, el, level = 0):
+        for subEl in el.xpath("*"):
+	   if subEl.tag == self.pTag:
+		style = subEl.get(self._styleNameAttributeName)
+		bookmark = etree.Element(self.bookmarkTag)
+		marginLeft = self.styles.getParaMarginLeft(style, level)
+		#Remove units - all we need are absolute numbers
+		#for relative indents
+		marginLeft = re.sub("[^\W\d]*", "", str(marginLeft))
+		bookmark.attrib[self.bookmarkNameAttribute] = "left-margin:%s :::%s" %\
+			 (marginLeft, str(self._count))
+		self._count += 1
+		subEl.append(bookmark) 
+	   elif subEl.tag == self._listTag:
+	   	self._traverseDocAddingBookmarks(subEl, level + 1)
+	   else:
+	 	self._traverseDocAddingBookmarks(subEl,level)					
 
+
+  
+	
+class Namespaces:
+    def __init__(self):
+	self._ns = dict()
+	self._ns["style"] = "urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+	self._ns["fo"] = "urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+	self._ns["text"] = "urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+	self._ns["office"] = "urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+
+    def get(self, ns):
+	return self._ns[ns]
 
 class Styles():	
     def __init__(self, odfZip):
+	self.ns = Namespaces()
 	self._styles = dict()
 	self._readParaStyles(odfZip.open("styles.xml"))
 	self._readParaStyles(odfZip.open("content.xml"))
 	self._listStyles = dict()
 	self._readListStyles(odfZip.open("styles.xml"))
+	self._readListStyles(odfZip.open("content.xml"))
+	
 
     def _readParaStyles(self, styleFile):
         self._stylesDoc = etree.parse(styleFile)
-	styleElementName =  "{urn:oasis:names:tc:opendocument:xmlns:style:1.0}style"
-	styleNameAttributeName =  "{urn:oasis:names:tc:opendocument:xmlns:style:1.0}name"
-	styleParentAttributeName = "{urn:oasis:names:tc:opendocument:xmlns:style:1.0}parent-style-name"
-	styleParagraphPropertiesElementName = "{urn:oasis:names:tc:opendocument:xmlns:style:1.0}paragraph-properties"
-	marginAttributeName = "{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}margin-left"
+	styleElementName =  "{%s}style" % self.ns.get("style")
+	styleNameAttributeName =  "{%s}name" % self.ns.get("style")
+	styleParentAttributeName = "{%s}parent-style-name" % self.ns.get("style")
+	styleParagraphPropertiesElementName = "{%s}paragraph-properties" % self.ns.get("style")
+	marginAttributeName = "{%s}margin-left" % self.ns.get("fo")
+	listStyleAttributeName = "{%s}list-style-name" % self.ns.get("style")
 	styleRoot = self._stylesDoc.getroot()
 	for styleElement in styleRoot.iter(styleElementName):
 		style = dict()
 		style["name"] = styleElement.get(styleNameAttributeName)
 		style["parent"] = styleElement.get(styleParentAttributeName)
+		style["list-style-name"] = styleElement.get(listStyleAttributeName)
 		style["margin-left"] = None
 		for p in styleElement.iter(styleParagraphPropertiesElementName):
 		    style["margin-left"] = p.get(marginAttributeName)
@@ -99,13 +113,12 @@ class Styles():
 
     def _readListStyles(self, styleFile):
         self._listStylesDoc = etree.parse(styleFile)
-	print "Reading list styles"
-	styleElementName =  "{urn:oasis:names:tc:opendocument:xmlns:text:1.0}list-style"
-	styleNameAttributeName =  "{urn:oasis:names:tc:opendocument:xmlns:style:1.0}name"
-	listLevelAttributeName =  "{urn:oasis:names:tc:opendocument:xmlns:text:1.0}level"
-	marginAttributeName = "{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}margin-left"
-	aligmentElementName =  "{urn:oasis:names:tc:opendocument:xmlns:style:1.0}list-level-label-alignment"
-	marginAttributeName = "{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}margin-left"
+	styleElementName =  "{%s}list-style" % self.ns.get("text")
+	styleNameAttributeName =  "{%s}name"  % self.ns.get("style")
+	listLevelAttributeName =  "{%s}level"  % self.ns.get("text")
+	marginAttributeName = "{%s}margin-left"  % self.ns.get("fo")
+	aligmentElementName =  "{%s}list-level-label-alignment"  % self.ns.get("style")
+	
 	
 	styleRoot = self._listStylesDoc.getroot()
 	for styleElement in styleRoot.iter(styleElementName):
@@ -115,13 +128,16 @@ class Styles():
 		for l in styleElement.xpath("*"):
 		    thisLevel = dict()
 		    levelNum = l.get(listLevelAttributeName)
-		    print levelNum
 		    for a in l.iter(aligmentElementName):
 			thisLevel["margin-left"] = a.get(marginAttributeName)
-		    style[levelNum] = thisLevel
-		
+		    style[levelNum] = thisLevel		
 		self._listStyles[style["name"]] = style
 
+
+
+    def getDisplayName(self, someStyle):
+	if self._styles.has_key(someStyle):
+		return self._styles[someStyle]#TODO
 
     def getListMarginLeft(self, someStyle, level):
 	level = str(level)
@@ -130,12 +146,15 @@ class Styles():
 	else:
 		return 0 #TODO Not sure if this is best
 	
-    def getParaMarginLeft(self, someStyle):
+    def getParaMarginLeft(self, someStyle, level = 1):
 	if self._styles.has_key(someStyle):
 		margin = self._styles[someStyle]["margin-left"]
 		parent = self._styles[someStyle]["parent"]
+		liststyle = self._styles[someStyle]["list-style-name"]
 		if  margin <> None:
 			return margin
+		elif liststyle <> None:
+			return self.getListMarginLeft(liststyle, level)
 		elif parent <> None:
 			return self.getParaMarginLeft(parent)
 		else:
@@ -167,11 +186,9 @@ def main():
                 usage()
                 sys.exit()
             if o in ("-c", "--connection-string"):
-                url = "uno:" + a + ";urp;StarOffice.ComponentContext"
-               
+                url = "uno:" + a + ";urp;StarOffice.ComponentContext"     
             if o == "--pdf":
                 exportPDF = True
-
 	    if o == "--noWordDown":
 		wordDown = False
 	    if o == "--dataURIs":
@@ -197,11 +214,10 @@ def main():
             destDir, outFilename = os.path.split(path)
 	(filestem, ext) = os.path.splitext(outFilename)
 	
-	filterName = "HTML (StarWriter)"
-        extension  = "html"
+
 	
 	#Final HTML pathname
-	dest = os.path.join(destDir, filestem + "." + extension)
+	dest = os.path.join(destDir, filestem + ".html")
 	
 	tempDir = tempfile.mkdtemp()
         ctxLocal = uno.getComponentContext()
@@ -216,33 +232,63 @@ def main():
 
         cwd = systemPathToFileUrl( getcwd() )
 
-        outProps = (
-            PropertyValue( "FilterName" , 0, filterName , 0 ),
-	    PropertyValue( "Overwrite" , 0, True , 0 ),
-            PropertyValue( "OutputStream", 0, OutputStream(), 0)
-	)
-	    
+     
         inProps = PropertyValue( "Hidden" , 0 , True, 0 ),
 
         try:
-		
+		#Open initial document
 		fileUrl = systemPathToFileUrl(path)
 		doc = desktop.loadComponentFromURL( fileUrl , "_blank", 0, inProps )
 		if not doc:
 			raise UnoException( "Couldn't open stream for unknown reason", None )
-
-		lists = compileListInfo(doc) 
-		addBookmarks(doc, lists)
-
-
+ 
+		#obsolete & slow
+		#lists = compileListInfo(doc) 
+		#addBookmarks(doc, lists)
 		
 		#Write to temp and copy out later
-                tempDest = os.path.join(tempDir, filestem + "." + extension)
-		destUrl = systemPathToFileUrl(tempDest)
-		sys.stderr.write(destUrl + "\n")
-		#Save as HTML
+ 		
+		tempOdtDest = os.path.join(tempDir, filestem + "_new.odt")
+		
+		destUrl = systemPathToFileUrl(tempOdtDest)
+		print "about to save as odt" + destUrl
+		#Save as ODT
+		filterName = "writer8"
+       		extension  = "odt"
+		#filterName = "HTML (StarWriter)"
+       		#extension  = "html"
+      		outProps = (
+           	   PropertyValue( "FilterName" , 0, filterName , 0 ),
+	    	   PropertyValue( "Overwrite" , 0, True , 0 ),
+           	   PropertyValue( "OutputStream", 0, OutputStream(), 0)
+		)
 		doc.storeToURL(destUrl, outProps)
-		#Copy dir TODO
+		doc.close(True)
+		print "saved"
+
+		#Pre-process the ODT file
+		odt = zipfile.ZipFile(tempOdtDest, "a")
+		bookmarker = Bookmarker(odt)
+		
+		fileUrl = systemPathToFileUrl(tempOdtDest)
+		doc = desktop.loadComponentFromURL( fileUrl , "_blank", 0, inProps )
+		if not doc:
+			raise UnoException( "Couldn't open stream for unknown reason", None )
+	        
+
+
+
+		#Save as HTML
+		tempDest = os.path.join(tempDir, filestem + ".html")
+		destUrl = systemPathToFileUrl(tempDest)
+		filterName = "HTML (StarWriter)"
+       		extension  = "html"
+      		outProps = (
+           	   PropertyValue( "FilterName" , 0, filterName , 0 ),
+	    	   PropertyValue( "Overwrite" , 0, True , 0 ),
+           	   PropertyValue( "OutputStream", 0, OutputStream(), 0)
+		)
+		doc.storeToURL(destUrl, outProps)
 		
 		src_files = os.listdir(tempDir)
 	        for file_name in src_files:
@@ -319,4 +365,5 @@ def usage():
 		  
                   )
 
-#main()    
+if __name__ == "__main__":
+    main()
