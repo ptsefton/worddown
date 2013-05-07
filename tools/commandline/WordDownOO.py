@@ -35,6 +35,7 @@ class Bookmarker():
 	self._count = 0
 	self._ns = Namespaces()
 	self.pTag = "{%s}p" % self._ns.get("text")
+	self.hTag = "{%s}h" % self._ns.get("text")
 	self._listTag = "{%s}list" % self._ns.get("text")
 	self._styleNameAttributeName =  "{%s}style-name" % self._ns.get("text")
 	self.bookmarkTag = "{%s}bookmark" % self._ns.get("text")
@@ -50,8 +51,10 @@ class Bookmarker():
 	
     def _traverseDocAddingBookmarks(self, el, level = 0):
         for subEl in el.xpath("*"):
-	   if subEl.tag == self.pTag:
+	   if subEl.tag in (self.pTag, self.hTag): #TODO - include headings in this
 		style = subEl.get(self._styleNameAttributeName)
+
+		#ADd left margin info in bookmark
 		bookmark = etree.Element(self.bookmarkTag)
 		marginLeft = self.styles.getParaMarginLeft(style, level)
 		#Remove units - all we need are absolute numbers
@@ -59,6 +62,13 @@ class Bookmarker():
 		marginLeft = re.sub("[^\W\d]*", "", str(marginLeft))
 		bookmark.attrib[self.bookmarkNameAttribute] = "left-margin:%s :::%s" %\
 			 (marginLeft, str(self._count))
+		
+		subEl.append(bookmark) 
+		
+		#Add style info in bookmark
+		bookmark = etree.Element(self.bookmarkTag)
+		bookmark.attrib[self.bookmarkNameAttribute] = "style:%s :::%s" %\
+			 (self.styles.getDisplayName(style), str(self._count))
 		self._count += 1
 		subEl.append(bookmark) 
 	   elif subEl.tag == self._listTag:
@@ -85,13 +95,15 @@ class Styles():
 	self.ns = Namespaces()
 	self._styles = dict()
 	self._readParaStyles(odfZip.open("styles.xml"))
-	self._readParaStyles(odfZip.open("content.xml"))
+	self._readParaStyles(odfZip.open("content.xml"), True)
 	self._listStyles = dict()
+	#Proper defined styles live in styles.xml
 	self._readListStyles(odfZip.open("styles.xml"))
+	#Auto defined styles live in content.xml
 	self._readListStyles(odfZip.open("content.xml"))
 	
 
-    def _readParaStyles(self, styleFile):
+    def _readParaStyles(self, styleFile, auto=False):
         self._stylesDoc = etree.parse(styleFile)
 	styleElementName =  "{%s}style" % self.ns.get("style")
 	styleNameAttributeName =  "{%s}name" % self.ns.get("style")
@@ -99,12 +111,15 @@ class Styles():
 	styleParagraphPropertiesElementName = "{%s}paragraph-properties" % self.ns.get("style")
 	marginAttributeName = "{%s}margin-left" % self.ns.get("fo")
 	listStyleAttributeName = "{%s}list-style-name" % self.ns.get("style")
+	displayNameAttributeName = "{%s}display-name" % self.ns.get("style")
 	styleRoot = self._stylesDoc.getroot()
 	for styleElement in styleRoot.iter(styleElementName):
 		style = dict()
+		style["auto"] = auto
 		style["name"] = styleElement.get(styleNameAttributeName)
 		style["parent"] = styleElement.get(styleParentAttributeName)
 		style["list-style-name"] = styleElement.get(listStyleAttributeName)
+		style["display-name"] = styleElement.get(displayNameAttributeName)
 		style["margin-left"] = None
 		for p in styleElement.iter(styleParagraphPropertiesElementName):
 		    style["margin-left"] = p.get(marginAttributeName)
@@ -137,7 +152,20 @@ class Styles():
 
     def getDisplayName(self, someStyle):
 	if self._styles.has_key(someStyle):
-		return self._styles[someStyle]#TODO
+		parent = self._styles[someStyle]["parent"]
+		auto = self._styles[someStyle]["auto"]
+		displayName = self._styles[someStyle]["display-name"]
+		
+		if not auto:
+			if displayName <> None:
+				return displayName
+			else:
+				return someStyle
+		
+		elif parent <> None and auto:
+			return self.getDisplayName(parent)
+	
+	return "Default"
 
     def getListMarginLeft(self, someStyle, level):
 	level = str(level)
@@ -251,12 +279,11 @@ def main():
 		tempOdtDest = os.path.join(tempDir, filestem + "_new.odt")
 		
 		destUrl = systemPathToFileUrl(tempOdtDest)
-		print "about to save as odt" + destUrl
+		
 		#Save as ODT
 		filterName = "writer8"
        		extension  = "odt"
-		#filterName = "HTML (StarWriter)"
-       		#extension  = "html"
+		
       		outProps = (
            	   PropertyValue( "FilterName" , 0, filterName , 0 ),
 	    	   PropertyValue( "Overwrite" , 0, True , 0 ),
@@ -282,6 +309,7 @@ def main():
 		tempDest = os.path.join(tempDir, filestem + ".html")
 		destUrl = systemPathToFileUrl(tempDest)
 		filterName = "HTML (StarWriter)"
+		#filtername = "writer_web_HTML_help"
        		extension  = "html"
       		outProps = (
            	   PropertyValue( "FilterName" , 0, filterName , 0 ),
@@ -293,7 +321,7 @@ def main():
 		src_files = os.listdir(tempDir)
 	        for file_name in src_files:
     			full_file_name = os.path.join(tempDir, file_name)
-    			if (os.path.isfile(full_file_name)):
+    			if (os.path.isfile(full_file_name) and full_file_name <> tempOdtDest):
     			    shutil.copy(full_file_name, destDir)
 
 		if wordDown:

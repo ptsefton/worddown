@@ -26,7 +26,7 @@
    });
 
 
-   test("Check left margin code", function() {
+ test("Check left margin code", function() {
        //OpenOffice docs need to be pre-processed to add left-margin info to a bookmark
        //Word docs use the browser's rendering engine. These tests are using OO version of the docs
        //as the Word versions are not very atomic - they need to have all the CSS etc in place to work
@@ -41,6 +41,19 @@
 
    });
 
+test("Check list tagging", function() {
+       //OpenOffice docs need to be pre-processed to add left-margin info to a bookmark
+       //Word docs use the browser's rendering engine. These tests are using OO version of the docs
+       //as the Word versions are not very atomic - they need to have all the CSS etc in place to work
+	var w2h = word2HML5Factory($);
+	var listin = $("div#testListOO-in").clone();
+	var listout = $("div#testListOO-out").clone();
+	w2h.getLeftMargin(listout);
+   
+	equal(listin.html(), listout.html());
+
+   });
+
 
 
  test("Check minimum left-indent & data attributes", function() {
@@ -48,12 +61,42 @@
 	//TODO - add lots more that test all the edge cases, eg lists in lists, lists adjacent to other lists etc.
 	var w2h = word2HML5Factory($);
 	var html = $("div#OOCodeWithNegativeHeadingIndent").clone();
-	var newHtml = $("div#OOCodeWithNegativeHeadingIndentWithDataAtts").clone()
+	var newHtml = $("div#OOCodeWithNegativeHeadingIndentWithDataAtts").clone();
 	equal(w2h.getBaselineIndentAndDataAtts(html), "501", "Ignores heading indent uses least indent from a paragraph");
 	equal(html.html(), newHtml.html(), "Lists removed, data attributes added for class and left-margin, anchors removed");
 	
    });
 
+
+
+
+
+ test("Check lists work inside tables", function() {
+	var w2h = word2HML5Factory($);
+	var html = $("div#bullets-in-tables-in").clone();
+	var container = $("<article>  </article>");
+	
+	html = w2h.processparas(html);
+	
+          
+	var newHtml = $("div#bullets-in-tables-out").clone();
+	
+	equal(html.html(), newHtml.html(), "Lists work inside tables");
+	
+   });
+
+ test("Find a title in an OOO doc (uses H1 but class is title)", function() {
+	var w2h = word2HML5Factory($);
+	var html = $("div#title-via-style-in").clone();
+	var container = $("<article>  </article>");
+	
+	html = w2h.processparas(html);
+	 
+	var newHtml = $("div#title-via-style-out").clone();
+	
+	equal(html.html(), newHtml.html(), "Lists work inside tables");
+	
+   });
 
 
   </script>
@@ -182,6 +225,66 @@ More quote</p>
 Back to Normal</p>
 </body>
 </div>
+
+<div id="testListOO-in">
+<h1 class="h1-slide-western">Lessons</h1>
+<ul>
+<li><p style="margin-bottom: 0in">Open Source can be worth doing even if the audience is your future self</p></li>
+<li><p style="margin-bottom: 0in">Don’t trust someone else to keep your website up</p></li>
+<li><p style="margin-bottom: 0in">If you want a community you’ll (likely) have to build it</p></li>
+<li><p>Every project is different, so you need to structure yours around your users</p></li>
+</ul>
+</div>
+
+<div id="testListOO-out">
+<h1 class="h1-slide-western">Lessons</h1>
+<ul>
+<li><p style="margin-bottom: 0in">Open Source can be worth doing even if the audience is your future self</p></li>
+<li><p style="margin-bottom: 0in">Don’t trust someone else to keep your website up</p></li>
+<li><p style="margin-bottom: 0in">If you want a community you’ll (likely) have to build it</p></li>
+<li><p>Every project is different, so you need to structure yours around your users</p></li>
+</ul>
+</div>
+
+<div id="bullets-in-tables-in">
+<P STYLE="margin-bottom: 0cm"><A NAME="left-margin:0 :::0"></A>Some
+bullets.</P>
+<UL>
+	<LI><P STYLE="margin-bottom: 0cm"><A NAME="left-margin:1.27 :::1"></A>
+	One</P>
+	<LI><P STYLE="margin-bottom: 0cm"><A NAME="left-margin:1.27 :::2"></A>
+	two</P>
+	<LI><P STYLE="margin-bottom: 0cm"><A NAME="left-margin:1.27 :::3"></A>
+	three</P>
+</UL>
+<P ALIGN=LEFT STYLE="margin-bottom: 0cm"><A NAME="left-margin:0 :::4"></A>
+<BR>
+</P>
+<TABLE WIDTH=100% CELLPADDING=4 CELLSPACING=0>
+	<COL WIDTH=256*>
+	<TR>
+		<TD WIDTH=100% VALIGN=TOP STYLE="border: 1px solid #000000; padding: 0.1cm">
+			<P ALIGN=LEFT><A NAME="left-margin:0 :::5"></A>IN a table</P>
+			<UL>
+				<LI><P ALIGN=LEFT><A NAME="left-margin:1.27 :::6"></A>One</P>
+				<LI><P ALIGN=LEFT><A NAME="left-margin:1.27 :::7"></A>Two 
+				</P>
+				<LI><P ALIGN=LEFT><A NAME="left-margin:1.27 :::8"></A>Three</P>
+			</UL>
+		</TD>
+	</TR>
+</TABLE>
+<P ALIGN=LEFT STYLE="margin-bottom: 0cm"><A NAME="left-margin:0 :::9"></A>
+<BR>
+</P>
+</div>
+<div id="bullets-in-tables-out">
+
+</div>
+
+<div id="title-via-style-in"><H1 CLASS="Title">This is a title via a style</H1></div>
+
+<div id="title-via-style-out"><article><section><h1 class="Title">This is a title via a style</h1></section></article></div>
 
 </body>
 </html>

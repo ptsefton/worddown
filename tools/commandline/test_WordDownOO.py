@@ -10,7 +10,7 @@ class TestSequenceFunctions(unittest.TestCase):
     def setUp(self):
         self.testPath="./tests/testLeftAlign.odt"
 	self.testPathDoc="./tests/TestWordDocLeftAlign.odt"
-
+	self.testPathStyle="./tests/testStyleNames.odt"
     def getZip(self, filePath):
         tempDir = tempfile.mkdtemp()
 	shutil.copy(filePath,tempDir)
@@ -18,7 +18,7 @@ class TestSequenceFunctions(unittest.TestCase):
 	tempPath = os.path.join(tempDir, filename)
 	return zipfile.ZipFile(tempPath, 'a')
 
-    def test_styles(self):
+    def test_styles_align(self):
 	odt = self.getZip(self.testPath)
 	s = WordDownOO.Styles(odt)
 	self.assertEqual(s.getParaMarginLeft("Standard"),"0")
@@ -30,6 +30,12 @@ class TestSequenceFunctions(unittest.TestCase):
 	self.assertEqual(s.getParaMarginLeft("P1"),"-1.251cm")
 
 	self.assertEqual(s.getListMarginLeft("L1", 1), "1.296cm")
+
+    def test_styles_names(self):
+	odt = self.getZip(self.testPathStyle)
+	s = WordDownOO.Styles(odt)
+	self.assertEqual(s.getDisplayName("Text_20_body"),"Text body")
+	self.assertEqual(s.getDisplayName("P2"),"li1b")
 
     def test_doc_styles(self):
 	odt = self.getZip(self.testPathDoc)

@@ -48,8 +48,7 @@ function word2HML5Factory(jQ) {
 		[/H(ead)?(ing)? ?3.*/i ,4],
 		[/H(ead)?(ing)? ?4.*/i ,5],
 		[/H(ead)?(ing)? ?5.*/i ,6],
-		[/^(mso)?title/i, 1],
-		[/subtitle/i,  2]
+		[/^(mso)?title/i, 1]
 		
 	]		
 	
@@ -200,7 +199,7 @@ function word2HML5Factory(jQ) {
 	}
 	function getRidOfStyleAndClass(element) {
 		jQ(element).removeAttr("style");
-		jQ(element).removeAttr("class");
+		//jQ(element).removeAttr("class");
 	}
 
  function processparas(node) {
@@ -258,7 +257,9 @@ function addLineBreaks(text) {
 		classAnchor.remove();
 		el.attr("class",classString);
 	} 
-	return  el.attr("class") ? String(el.attr("class")) : "";
+	el.attr("data-class",  el.attr("class") ? String(el.attr("class")) : "");
+	
+	return  el.attr("data-class");
 }
 
    function getType(el) {
@@ -300,21 +301,11 @@ function addLineBreaks(text) {
 				return;
 		}
 
-
-		//HTML headings
-		var nodeName = el.get(0).nodeName;
-		if (nodeName.search(/H\d/) == 0) {
-			el.attr("data-type", "h");
-			el.attr("data-headingLevel", parseFloat(nodeName.substring(1,2)) + 1);
-			
-			return;
-		}
-		
-                //Headings using styles
+		//Headings using styles
 		jQ.each(config.headingMatches,
 		//Look for headings via paragraph style
 			function (n, item) {
-				
+				console.log(item);
 				if (classs.search(item[0]) > -1) {
 					el.attr("data-type", "h");
 					el.attr("data-headingLevel", item[1]);
@@ -327,6 +318,19 @@ function addLineBreaks(text) {
 				}
 			}
 		);
+
+		//HTML headings
+		var nodeName = el.get(0).nodeName;
+		if (nodeName.search(/H\d/) == 0) {
+			el.attr("data-type", "h");	
+			if (!el.attr("data-headingLevel")) {
+				el.attr("data-headingLevel", parseFloat(nodeName.substring(1,2)) + 1);
+			}
+			return;
+		}
+		
+                
+		
 		
 		style = el.attr("style");
 		//TODO This will fail on adjacent lists (or other things) with same depth but diff formatting
@@ -482,25 +486,19 @@ function getBaselineIndentAndDataAtts(node) {
 				}
 			}
 		        else {
-		   	state.setHeadinglevel(headingLevel);
-			state.headingLevelDown(); //unindent container elements where necessary
+			   	state.setHeadinglevel(headingLevel);
+				state.headingLevelDown(); //unindent container elements where necessary
 			
 			
-			if (headingLevel == "1") {
-				//Actually title
-				var title = jQ("<title></title>");
-				
-				jQ("title").remove(); //NO titles ATM but one day there might be
-				jQ("head").append("title");
-			}
-			if (state.headingNestingNeeded()){        
-				var newSection = jQ("<section></section>");
-				if (classs.indexOf("typeof-") === 0) {
-					newSection.attr("typeof",classs.replace(/^typeof-/,""));
+			
+				if (state.headingNestingNeeded()){        
+					var newSection = jQ("<section></section>");
+					if (classs.indexOf("typeof-") === 0) {
+						newSection.attr("typeof",classs.replace(/^typeof-/,""));
+					}
+					state.pushHeadingState(newSection);
+					}
 				}
-				state.pushHeadingState(newSection);
-				}
-			}
 			
 		}
 		else { //Not a heading
@@ -577,11 +575,11 @@ function getBaselineIndentAndDataAtts(node) {
 			else {
 			    //Hack - the state-stack is a mess
 				//if (state.getCurrentContainer().length) {
-					jQ(this).appendTo(state.getCurrentContainer());
+				jQ(this).appendTo(state.getCurrentContainer());
 			    //}
 				
 				if (type == "h") {
-					tag = "<h" + parseFloat(headingLevel) + ">";
+					tag = "<h" + parseFloat(headingLevel) + " class=\"" + classs + "\">";
 					jQ(this).replaceWith( tag + jQ(this).html());
 					}
 				
@@ -820,7 +818,11 @@ function convert() {
         body = html.find("body");
 	body.removeAttr("link");
 	body.removeAttr("vlink");
-	jQ("head").html("");
+	//jQ("head").html("");
+	var headingTitle = jQ("h1.title");
+	if (headingTitle.length > 0 ) {
+		jQ("title").html(headingTitle.text());
+	}
 	jQ("head").append('<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />');
 
 	//Clean up tables
