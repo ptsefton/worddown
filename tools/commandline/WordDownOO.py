@@ -27,7 +27,32 @@ class OutputStream( Base, XOutputStream ):
     def flush( self ):
         pass
 
+def removeFrames(root):
+    ns = Namespaces()
+    pTag = "{%s}p" % ns.get("text")
+    drawTag = "{%s}frame" % ns.get("draw")
+    bodyEls = "*/*/*" # % ns.get("office")
+ 
+    for subEl in root.xpath(bodyEls):
+	if subEl.tag == drawTag:
+		subEl.getparent().remove(subEl)
+	elif subEl.tag == pTag:
+		return
 
+def RemoveExtraImages(odfZip):
+	#Nasty hack - remove draw frames before first P - this may kill some legit placed in frames
+	#anchored to the doc, but when LibreOffice 3.5  saves .docx files to .odt it adds duplicate images
+	#at the top of the doc
+	
+	contentXml = etree.parse(odfZip.open("content.xml"))
+	contentRoot = contentXml.getroot()
+	removeFrames(contentRoot)
+		
+	odfZip.writestr("content.xml",etree.tostring(contentRoot))
+
+	
+	
+	
 
 class Bookmarker():
     #
@@ -54,7 +79,7 @@ class Bookmarker():
 	   if subEl.tag in (self.pTag, self.hTag): #TODO - include headings in this
 		style = subEl.get(self._styleNameAttributeName)
 
-		#ADd left margin info in bookmark
+		#Add left margin info in bookmark
 		bookmark = etree.Element(self.bookmarkTag)
 		marginLeft = self.styles.getParaMarginLeft(style, level)
 		#Remove units - all we need are absolute numbers
@@ -86,6 +111,7 @@ class Namespaces:
 	self._ns["fo"] = "urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
 	self._ns["text"] = "urn:oasis:names:tc:opendocument:xmlns:text:1.0"
 	self._ns["office"] = "urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+        self._ns["draw"] = "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
 
     def get(self, ns):
 	return self._ns[ns]
@@ -203,20 +229,20 @@ def main():
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hc:",
-            ["help", "connection-string=" ,  "pdf", "noWordDown", "dataURIs", "deleteOutputDir", "epub"])
-        url = "uno:socket,host=localhost,port=2002;urp;StarOffice.ComponentContext"
+            ["help", "connection-string=" ,  "pdf", "noWordDown", "recursive", "daemon", "epub", "force"])
         wordDown = True #default to nice clean HTML
 	dataURIs = False
 	deleteOutputDir = False
 	epub = False
+	recursive = False
+	force = False
+	daemon = False
         for o, a in opts:
             if o in ("-h", "--help"):	
                 usage()
                 sys.exit()
-            if o in ("-c", "--connection-string"):
-                url = "uno:" + a + ";urp;StarOffice.ComponentContext"     
-            if o == "--pdf":
-                exportPDF = True
+           # if o == "--pdf":
+           #     exportPDF = True #TODO
 	    if o == "--noWordDown":
 		wordDown = False
 	    if o == "--dataURIs":
@@ -225,6 +251,12 @@ def main():
 		deleteOutputDir = True
 	    if o == "--epub":
 		epub = True
+	    if o == "--recursive":
+		recursive = True
+            if o == "--daemon":
+		daemon = True
+	    if o == "--force":
+		force = True
                 
         if not len(args) or len(args) > 2:
             usage()
@@ -232,21 +264,69 @@ def main():
 
 	path = args[0]
 	path = os.path.abspath(path)
-        if len(args) == 2:
+	
+        
+	if len(args) == 2:
 	    destDir = args[1]
-	    if not os.path.exists(destDir):
-		 os.makedirs(destDir)
-	    discardThis, outFilename = os.path.split(path)
 	else:
-	    outPath = path
-            destDir, outFilename = os.path.split(path)
-	(filestem, ext) = os.path.splitext(outFilename)
-	
+	    destDir = None
 
-	
+
+	if recursive:
+	    keepGoing = True
+            while keepGoing:
+		for root, dirs, files in os.walk(path):
+		    for f in files:
+		        filePath = os.path.join(root,f)
+		        (stem, ext) = os.path.splitext(filePath)
+		        if ext in (".doc",".odt",".docx"):	
+		            if destDir <> None:
+			        relpath = os.path.relpath(filePath, path)
+			        dest = os.path.join(destDir, relpath)
+			    else:
+			        dest = os.path.join(root,"_html")
+			    print "Converting %s to %s" % (filePath, dest)
+			    convert(filePath, dest, wordDown, dataURIs, epub, force)
+            	keepGoing = daemon
+	else:
+	    if destDir <> None:
+	         discardThis, outFilename = os.path.split(path)
+	    else:
+	        outPath = path 
+                destDir, outFilename = os.path.split(path)
+	        destDir = os.path.join(destDir,"_html")
+            convert(path, destDir, wordDown, dataURIs, epub, force)
+    except UnoException, e:
+        sys.stderr.write( "Error ("+repr(e.__class__)+") :" + e.Message + "\n" )
+        retVal = 1
+    except getopt.GetoptError,e:
+        sys.stderr.write( str(e) + "\n" )
+        usage()
+        retVal = 1
+    sys.exit(retVal)
+
+def convert(path, destDir, wordDown, dataURIs, epub, force):
+	#todo - get rid of outFilename
+        
+        #todo - only run if there has been a change
+
+
+        url = "uno:socket,host=localhost,port=2002;urp;StarOffice.ComponentContext"
+
+	if not os.path.exists(destDir):
+	           os.makedirs(destDir)
+	(tempVa, outFilename) = os.path.split(path)
+	(filestem, ext) = os.path.splitext(outFilename)
 	#Final HTML pathname
+
+        
 	dest = os.path.join(destDir, filestem + ".html")
-	
+
+	#Check up-to-dateness		
+	if os.path.exists(dest) and  os.path.getmtime(dest) > os.path.getmtime(path) and not force:
+		print "Unchanged"
+		return
+		
 	tempDir = tempfile.mkdtemp()
         ctxLocal = uno.getComponentContext()
         smgrLocal = ctxLocal.ServiceManager
@@ -295,7 +375,9 @@ def main():
 
 		#Pre-process the ODT file
 		odt = zipfile.ZipFile(tempOdtDest, "a")
+		RemoveExtraImages(odt)
 		bookmarker = Bookmarker(odt)
+
 		
 		fileUrl = systemPathToFileUrl(tempOdtDest)
 		doc = desktop.loadComponentFromURL( fileUrl , "_blank", 0, inProps )
@@ -356,14 +438,7 @@ def main():
       	  retVal = 1
         if doc:
       	  doc.dispose()
-    except UnoException, e:
-        sys.stderr.write( "Error ("+repr(e.__class__)+") :" + e.Message + "\n" )
-        retVal = 1
-    except getopt.GetoptError,e:
-        sys.stderr.write( str(e) + "\n" )
-        usage()
-        retVal = 1
-    sys.exit(retVal)
+
     
 def usage():
     sys.stderr.write( "usage: WordDownOO.py --help | "+
@@ -371,6 +446,8 @@ def usage():
 		  "       [--pdf]\n"+
 		  "       [--noWordDown]\n"+
                   "       [--dataURIs]\n" + 
+	          "       [--daemon]\n" + 
+                  "       [--force]\n" + 
                   "       inputFile [outputDir]\n"+
                   "\n" +
                   "Exports documents as HTML, and runs them through WordDown to clean them up\n" +
