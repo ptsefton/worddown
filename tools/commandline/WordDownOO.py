@@ -151,6 +151,8 @@ class Styles():
 		    style["margin-left"] = p.get(marginAttributeName)
 		
 		self._styles[style["name"]] = style
+	
+
 
     def _readListStyles(self, styleFile):
         self._listStylesDoc = etree.parse(styleFile)
@@ -169,11 +171,11 @@ class Styles():
 		for l in styleElement.xpath("*"):
 		    thisLevel = dict()
 		    levelNum = l.get(listLevelAttributeName)
+		    thisLevel["margin-left"] = None
 		    for a in l.iter(aligmentElementName):
 			thisLevel["margin-left"] = a.get(marginAttributeName)
-		    style[levelNum] = thisLevel		
+		    style["levels"][levelNum] = thisLevel		
 		self._listStyles[style["name"]] = style
-
 
 
     def getDisplayName(self, someStyle):
@@ -195,8 +197,8 @@ class Styles():
 
     def getListMarginLeft(self, someStyle, level):
 	level = str(level)
-	if self._listStyles.has_key(someStyle) and self._listStyles[someStyle].has_key(level):
-		return self._listStyles[someStyle][level]["margin-left"]
+	if self._listStyles.has_key(someStyle) and self._listStyles[someStyle]["levels"].has_key(level): #and self._listStyles[someStyle]["levels"][level].has_key("margin_left"):
+		return self._listStyles[someStyle]["levels"][level]["margin-left"]
 	else:
 		return 0 #TODO Not sure if this is best
 	
@@ -211,12 +213,7 @@ class Styles():
 			return self.getListMarginLeft(liststyle, level)
 		elif parent <> None:
 			return self.getParaMarginLeft(parent)
-		else:
-			return "0"	
-		
-			
-	else:
-		return "0"
+	return "0"
 		
    	 
     
@@ -285,7 +282,6 @@ def main():
 			        dest = os.path.join(destDir, relpath)
 			    else:
 			        dest = os.path.join(root,"_html")
-			    print "Converting %s to %s" % (filePath, dest)
 			    convert(filePath, dest, wordDown, dataURIs, epub, force)
             	keepGoing = daemon
 	else:
@@ -371,7 +367,7 @@ def convert(path, destDir, wordDown, dataURIs, epub, force):
 		)
 		doc.storeToURL(destUrl, outProps)
 		doc.close(True)
-		print "saved"
+		
 
 		#Pre-process the ODT file
 		odt = zipfile.ZipFile(tempOdtDest, "a")
@@ -428,7 +424,7 @@ def convert(path, destDir, wordDown, dataURIs, epub, force):
 			html = open(dest, "r").read()
 			html = re.sub('(<IMG.*?SRC=")(.*?)(".*?>)',getData, html,flags=re.IGNORECASE)
 			open(dest, "w").write(html)
-
+		print "Saved: " + dest
 
         except IOException, e:
       	  sys.stderr.write( "Error during conversion: " + e.Message + "\n" )
@@ -447,6 +443,7 @@ def usage():
 		  "       [--noWordDown]\n"+
                   "       [--dataURIs]\n" + 
 	          "       [--daemon]\n" + 
+                  "       [--recursive]\n" 
                   "       [--force]\n" + 
                   "       inputFile [outputDir]\n"+
                   "\n" +
