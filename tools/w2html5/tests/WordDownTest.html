@@ -12,9 +12,22 @@
  <script src="/tools/w2html5/jquery-1.6.4.js"></script>
  <script src="/tools/w2html5/w2html5.js"></script>
   <script>
-   function toHtml(node) {
-  return(node.html().replace(/\s+/g, " "));
+
+function toHtml(node) {
+  return(node.innerHTML.replace(/\s+/g, " "));
   }
+
+function compareHtml(actual, expected, testName) {
+  var areEqual = actual.isEqualNode(expected);
+  if (areEqual) {
+ 	ok(areEqual, testname);
+  }
+  else {
+	equal(toHtml(actual),toHtml(expected),testName);
+  }
+
+}
+
 
 
    test("Remove empty pars from OO document", function () {
@@ -22,7 +35,7 @@
 	var hasEmpties = $("div#OOCodeWithEmptyPars-in");
 	var noEmpties = $("div#OOCodeWithEmptyPars-out");
 	w2h.removeEmpties(hasEmpties);
-	equal(toHtml(hasEmpties), toHtml(noEmpties), "Empty OpenOffice paras should be removed");
+	compareHtml(hasEmpties[0], noEmpties[0], "Empty OpenOffice paras should be removed");
    });
 
 
@@ -37,7 +50,9 @@
 	equal("-1000", heading.attr("data-margin-left"), "Heading had negative indent");
 	par = html.find("p:first");
 	w2h.getLeftMargin(par);
-	equal(par.get(0).outerHTML,"<p style=\"margin-bottom: 0in\" data-margin-left=\"501\"><a name=\"style:Standard :::\"></a>Checking minimum indent works.</p>","Anchor has been removed");
+        answer = $("<p style=\"margin-bottom: 0in\" data-margin-left=\"501\"><a name=\"style:Standard :::\"></a>Checking minimum indent works.</p>");
+	ok(answer[0].isEqualNode(par[0]), "Anchor has been removed");
+	//equal(par.get(0).outerHTML,,"Anchor has been removed");
 
    });
 
@@ -63,7 +78,7 @@ test("Check list tagging", function() {
 	var html = $("div#OOCodeWithNegativeHeadingIndent").clone();
 	var newHtml = $("div#OOCodeWithNegativeHeadingIndentWithDataAtts").clone();
 	equal(w2h.getBaselineIndentAndDataAtts(html), "501", "Ignores heading indent uses least indent from a paragraph");
-	equal(html.html(), newHtml.html(), "Lists removed, data attributes added for class and left-margin, anchors removed");
+	ok(html[0].isEqualNode(html[0]), "Lists removed, data attributes added for class and left-margin, anchors removed");
 	
    });
 
@@ -80,16 +95,29 @@ test("Check list tagging", function() {
 	
           
 	var newHtml = $("div#bullets-in-tables-out").clone();
+ 	
+	compareHtml(html[0], newHtml[0], "Lists work inside tables");
 	
-	equal(html.html(), newHtml.html(), "Lists work inside tables");
+   });
+
+ test("Check list types for ODF docs", function() {
+	var w2h = word2HML5Factory($);
+	var html = $("div#open-office-lists-in").clone();
+	var html2 = $("div#open-office-lists-in").clone();
+	w2h.flattenLists(html);
+	w2h.processparas(html2);
+	
+	var newHtml = $("div#open-office-flatten-lists-out").clone();
+	compareHtml(html[0], newHtml[0], "Lists types and flattening");
+
+ 	var newHtml2 = $("div#open-office-format-lists-out").clone();
+	compareHtml(html2[0], newHtml2[0], "Lists formatting works");
 	
    });
 
  test("Find a title in an OOO doc (uses H1 but class is title)", function() {
 	var w2h = word2HML5Factory($);
 	var html = $("div#title-via-style-in").clone();
-	var container = $("<article>  </article>");
-	
 	html = w2h.processparas(html);
 	 
 	var newHtml = $("div#title-via-style-out").clone();
@@ -278,7 +306,32 @@ bullets.</P>
 <BR>
 </P>
 </div>
-<div id="bullets-in-tables-out">
+<div id="bullets-in-tables-out"><article><p>Some
+bullets.</p><ul><li><p>
+	One</p></li><li><p>
+	two</p></li><li><p>
+	three</p></li></ul><p>
+<br>
+</p><table cellpadding="4" cellspacing="0" width="100%">
+	<colgroup><col width="256*">
+	</colgroup><tbody><tr>
+		<td style="border: 1px solid #000000; padding: 0.1cm" valign="TOP" width="100%">
+			
+			
+				
+				
+				
+			
+		<p>IN a table</p><ul><li><p>One</p></li><li><p>Two 
+				</p></li><li><p>Three</p></li></ul></td>
+	</tr>
+</tbody></table><p>
+<br>
+</p></article>
+
+
+	
+	
 
 </div>
 
@@ -287,4 +340,83 @@ bullets.</P>
 <div id="title-via-style-out"><article><section><h1 class="Title">This is a title via a style</h1></section></article></div>
 
 </body>
+
+<div id="open-office-lists-in">
+<OL>
+	<LI><P LANG="en-AU" STYLE="margin-bottom: 0.17in"><A NAME="style:List Paragraph :::71"></A><A NAME="left-margin:0.5 :::71"></A>
+	<B>Outreach, change management and training to promote eResearch</B>:</P>
+	<OL>
+		<LI><P LANG="en-AU" STYLE="margin-bottom: 0.17in"><A NAME="style:List Paragraph :::72"></A><A NAME="left-margin:1 :::72"></A>
+		Systematic development and deployment of professional development
+		programs across the university, for example training in eResearch
+		methods for Higher Degree by Research Students (HDRS) and their
+		supervisors.</P>
+		<LI><P LANG="en-AU" STYLE="margin-bottom: 0.17in"><A NAME="style:List Paragraph :::73"></A><A NAME="left-margin:1 :::73"></A>
+		Coordination of technology user groups, seminars, workshops and
+		interest groups to drive eResearch practices. This could include:</P>
+		<OL TYPE=i>
+			<LI><P LANG="en-AU" STYLE="margin-bottom: 0.17in"><A NAME="style:List Paragraph :::74"></A><A NAME="left-margin:1.5 :::74"></A>
+			Research computing user group.</P>
+			<LI><P LANG="en-AU" STYLE="margin-bottom: 0.17in"><A NAME="style:List Paragraph :::75"></A><A NAME="left-margin:1.5 :::75"></A>
+			Reproducible research practitioners network.</P>
+			<LI><P LANG="en-AU" STYLE="margin-bottom: 0.17in"><A NAME="style:List Paragraph :::76"></A><A NAME="left-margin:1.5 :::76"></A>
+			Digital humanities interest group.</P>
+		</OL>
+		<LI><P LANG="en-AU" STYLE="margin-bottom: 0.17in"><A NAME="style:List Paragraph :::77"></A><A NAME="left-margin:1 :::77"></A>
+		Communications via university channels</P>
+		<LI><P LANG="en-AU" STYLE="margin-bottom: 0.17in"><A NAME="style:List Paragraph :::78"></A><A NAME="left-margin:1 :::78"></A>
+		Evangelising eResearch, as services delivered by projects come
+		on-line.</P>
+	</OL>
+</OL>
+</div>
+<div id="open-office-flatten-lists-out">
+	<p data-type="li" data-listtype="1" data-margin-left="0.5 " data-class="List Paragraph" class="List Paragraph" style="margin-bottom: 0.17in" lang="en-AU">
+	<b>Outreach, change management and training to promote eResearch</b>:</p>
+	
+		<p data-type="li" data-listtype="1" data-margin-left="1 " data-class="List Paragraph" class="List Paragraph" style="margin-bottom: 0.17in" lang="en-AU">
+		Systematic development and deployment of professional development
+		programs across the university, for example training in eResearch
+		methods for Higher Degree by Research Students (HDRS) and their
+		supervisors.</p>
+		<p data-type="li" data-listtype="1" data-margin-left="1 " data-class="List Paragraph" class="List Paragraph" style="margin-bottom: 0.17in" lang="en-AU">
+		Coordination of technology user groups, seminars, workshops and
+		interest groups to drive eResearch practices. This could include:</p>
+		
+			<p data-type="li" data-listtype="i" data-margin-left="1.5 " data-class="List Paragraph" class="List Paragraph" style="margin-bottom: 0.17in" lang="en-AU">
+			Research computing user group.</p>
+			<p data-type="li" data-listtype="i" data-margin-left="1.5 " data-class="List Paragraph" class="List Paragraph" style="margin-bottom: 0.17in" lang="en-AU">
+			Reproducible research practitioners network.</p>
+			<p data-type="li" data-listtype="i" data-margin-left="1.5 " data-class="List Paragraph" class="List Paragraph" style="margin-bottom: 0.17in" lang="en-AU">
+			Digital humanities interest group.</p>
+		
+		<p data-type="li" data-listtype="1" data-margin-left="1 " data-class="List Paragraph" class="List Paragraph" style="margin-bottom: 0.17in" lang="en-AU">
+		Communications via university channels</p>
+		<p data-type="li" data-listtype="1" data-margin-left="1 " data-class="List Paragraph" class="List Paragraph" style="margin-bottom: 0.17in" lang="en-AU">
+		Evangelising eResearch, as services delivered by projects come
+		on-line.</p>
+	
+	
+</div>
+<div id="open-office-format-lists-out"><article></article>
+
+	<ol type="1"><li><p class="List Paragraph" lang="en-AU">
+	<b>Outreach, change management and training to promote eResearch</b>:</p><ol type="1"><li><p class="List Paragraph" lang="en-AU">
+		Systematic development and deployment of professional development
+		programs across the university, for example training in eResearch
+		methods for Higher Degree by Research Students (HDRS) and their
+		supervisors.</p></li><li><p class="List Paragraph" lang="en-AU">
+		Coordination of technology user groups, seminars, workshops and
+		interest groups to drive eResearch practices. This could include:</p><ol type="i"><li><p class="List Paragraph" lang="en-AU">
+			Research computing user group.</p></li><li><p class="List Paragraph" lang="en-AU">
+			Reproducible research practitioners network.</p></li><li><p class="List Paragraph" lang="en-AU">
+			Digital humanities interest group.</p></li></ol></li><li><p class="List Paragraph" lang="en-AU">
+		Communications via university channels</p></li><li><p class="List Paragraph" lang="en-AU">
+		Evangelising eResearch, as services delivered by projects come
+		on-line.</p></li></ol></li></ol>
+	
+		
+		
+		
+</div>
 </html>

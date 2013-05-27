@@ -238,10 +238,10 @@ function addLineBreaks(text) {
 				marginString = marginString.replace("left-margin:","");
 				marginString = marginString.replace(/:::.*/,"");
 				marginAnchor.remove();
-				el.attr("data-margin-left",marginString);
+				el.attr("data-margin-left", marginString);
 			} 
 			else { //Not provided so use browser rendering
-				el.attr("data-margin-left",parseFloat(el.offset().left));
+				el.attr("data-margin-left", parseFloat(el.offset().left));
 			}
 		}
 	}
@@ -305,7 +305,6 @@ function addLineBreaks(text) {
 		jQ.each(config.headingMatches,
 		//Look for headings via paragraph style
 			function (n, item) {
-				console.log(item);
 				if (classs.search(item[0]) > -1) {
 					el.attr("data-type", "h");
 					el.attr("data-headingLevel", item[1]);
@@ -400,14 +399,29 @@ function getBaselineIndentAndDataAtts(node) {
 	flattenLists(node);
         return leastIndent;
 
-}
+   }
    function flattenLists(node) {
    //Word sometimes adds lists
    //OpenOffice always adds lists but their indenting and nesting is always wrong
    //So rip out all the lists and rebuild based on paragraph left margin,
    //wiki-markup style
+   	labelListParas(node);
+	unwrapLists(node);
+   
+  		
+   }
 
-	node.children("ul,ol").each(
+   function unwrapLists(node) {
+	  
+	   while (node.children("ul, ol, li").length) {
+	   	 node.children("ol").children("li").first().unwrap();
+	  	 node.children("ul").children("li").first().unwrap();
+	  	 node.children("li").children("li").first().unwrap();
+	  	 node.children("li").children("p").first().unwrap();
+   	    }
+   }
+   function labelListParas(node) {
+  	node.children("ul,ol").each(
 		function() {
 			var list = jQ(this);
 			var listType;
@@ -415,7 +429,9 @@ function getBaselineIndentAndDataAtts(node) {
 				listType = "b";	
 			}
 			else {
-				listType = list.attr("type"); //TODO deal with undefined here
+				
+				listType = jQ(this).attr("type") ? jQ(this).attr("type") : "1";
+				
 			}
 
 			//Sometimes Word puts <p> in <li>, sometimes not
@@ -424,20 +440,23 @@ function getBaselineIndentAndDataAtts(node) {
 				jQ(this).children().wrap("<p> </p>");
 
 			});
-			list.find("li p").each(function(){
+			list.children("li").each(function(){
+                               jQ(this).children("p").each(function ()
+				{
 					getClass(jQ(this));
+					getLeftMargin(jQ(this));
 					jQ(this).attr("data-listType",listType);
 					jQ(this).attr("data-type","li");
-					getLeftMargin(jQ(this));
-					if (jQ(this).parent("li").length) {
-						jQ(this).unwrap();
-					}
+				        labelListParas(jQ(this));
+					
+					
+			        });
+				labelListParas(jQ(this));
+				
 			});
-			list.find("li p").first().unwrap();
-			list.find("*").first().unwrap();
-
-		}
-	);
+			labelListParas(list);	
+			
+		});
 
 }
 
@@ -472,7 +491,7 @@ function getBaselineIndentAndDataAtts(node) {
 		var listType = jQ(this).attr("data-listType");
 		var headingLevel = jQ(this).attr("data-headingLevel");
 		var classs = jQ(this).attr("data-class") ? jQ(this).attr("data-class") :  "";
-			
+		jQ(this).removeAttr("align")	
 		if (type === 'h') {
 			
 			if (jQ(this).parents("table").length) {
@@ -968,6 +987,7 @@ function convert() {
    word2html.getType = getType;
    word2html.getLeftMargin = getLeftMargin;
    word2html.processparas = processparas;
+   word2html.flattenLists = flattenLists;
    return word2html;
 }
 
