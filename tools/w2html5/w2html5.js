@@ -414,8 +414,8 @@ function getBaselineIndentAndDataAtts(node) {
    function unwrapLists(node) {
 	  
 	   while (node.children("ul, ol, li").length) {
-	   	 node.children("ol").children("li").first().unwrap();
-	  	 node.children("ul").children("li").first().unwrap();
+	   	 node.children("ol").children("*").first().unwrap();
+	  	 node.children("ul").children("*").first().unwrap();
 	  	 node.children("li").children("li").first().unwrap();
 	  	 node.children("li").children("p").first().unwrap();
    	    }
