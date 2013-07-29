@@ -203,7 +203,6 @@ function word2HML5Factory(jQ) {
 	}
 
  function processparas(node) {
-	
 	  var container = jQ("<article></article>")	
    	 //container.append(node)
 	 
@@ -416,8 +415,7 @@ function getBaselineIndentAndDataAtts(node) {
 	   while (node.children("ul, ol, li").length) {
 	   	 node.children("ol").children("*").first().unwrap();
 	  	 node.children("ul").children("*").first().unwrap();
-	  	 node.children("li").children("li").first().unwrap();
-	  	 node.children("li").children("p").first().unwrap();
+	  	 node.children("li").children("*").first().unwrap();	
    	    }
    }
    function labelListParas(node) {
@@ -471,6 +469,7 @@ function getBaselineIndentAndDataAtts(node) {
 
 
    function reformatChunk(node, container) {
+
 	var leastIndent = getBaselineIndentAndDataAtts(node);
 	
 	var state = stateFactory(container, leastIndent);
@@ -485,7 +484,6 @@ function getBaselineIndentAndDataAtts(node) {
 	//Main formatting code 
 	
 	node.children().each(function (index) {
-	
 		var type = jQ(this).attr("data-type");
 		var margin = parseFloat(jQ(this).attr("data-margin-left"));
 		var listType = jQ(this).attr("data-listType");
@@ -514,6 +512,9 @@ function getBaselineIndentAndDataAtts(node) {
 					var newSection = jQ("<section></section>");
 					if (classs.indexOf("typeof-") === 0) {
 						newSection.attr("typeof",classs.replace(/^typeof-/,""));
+					}
+					else if (classs == "Slide") {
+						newSection.attr("typeof", "http://purl.org/ontology/bibo/Slide");
 					}
 					state.pushHeadingState(newSection);
 					}
@@ -716,7 +717,6 @@ function convert() {
 	}
 	
 	jQ("o\\:SmartTagType").each(function(){(jQ(this).replaceWith(jQ(this).html()))});
-	
 	
 	jQ("head").html(loseWordMongrelMarkup(jQ("head").html()));
 
