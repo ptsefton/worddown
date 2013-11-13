@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import getopt, sys
 import uno
 import mimetypes
@@ -10,6 +11,7 @@ import base64
 import urllib
 import tempfile
 import shutil
+from bs4 import BeautifulSoup
 from com.sun.star.beans import PropertyValue
 from com.sun.star.uno import Exception as UnoException
 from com.sun.star.io import IOException, XOutputStream
@@ -18,6 +20,145 @@ import zipfile
 from wordDownOpenOfficeUtils import Bookmarker
 from wordDownOpenOfficeUtils import Styles
 from wordDownOpenOfficeUtils import Namespaces
+
+from lxml import etree
+
+def convert(path, destDir, wordDown, dataURIs, epub, force, htmlDir):
+    url = "uno:socket,host=localhost,port=2002;urp;StarOffice.ComponentContext"
+
+
+    (tempVa, outFilename) = os.path.split(path)
+    (filestem, ext) = os.path.splitext(outFilename)
+    #Final HTML pathname
+    if htmlDir:
+            dest = os.path.join(destDir, "index.html")
+    else:
+            dest = os.path.join(destDir, filestem + ".html")
+            
+  
+    if not os.path.exists(destDir):
+        os.makedirs(destDir)
+    #Check up-to-dateness		
+    if not force\
+       and os.path.exists(dest) \
+       and  os.path.getmtime(dest) > os.path.getmtime(path):
+        return
+                
+    tempDir = tempfile.mkdtemp()
+    ctxLocal = uno.getComponentContext()
+    smgrLocal = ctxLocal.ServiceManager
+
+    resolver = smgrLocal.createInstanceWithContext("com.sun.star.bridge.UnoUrlResolver", ctxLocal)
+    ctx = resolver.resolve(url)
+    smgr = ctx.ServiceManager
+
+    desktop = smgr.createInstanceWithContext("com.sun.star.frame.Desktop", ctx )
+
+    cwd = systemPathToFileUrl( getcwd() )
+
+     
+    inProps = PropertyValue( "Hidden" , 0 , True, 0 ),
+
+    try:
+        #Open initial document
+        fileUrl = systemPathToFileUrl(path)
+        doc = desktop.loadComponentFromURL( fileUrl , "_blank", 0, inProps )
+        if not doc:
+            raise UnoException( "Couldn't open stream for unknown reason", None )	
+
+        #Write an ODT copy  to temp and copy out later		
+        tempOdtDest = os.path.join(tempDir, filestem + "_new.odt")
+
+              
+        destUrl = systemPathToFileUrl(tempOdtDest)
+                
+        #Save as ODT
+        filterName = "writer8"
+        extension  = "odt"
+                
+        outProps = (
+                   PropertyValue( "FilterName" , 0, filterName , 0 ),
+                   PropertyValue( "Overwrite" , 0, True , 0 ),
+                   PropertyValue( "OutputStream", 0, OutputStream(), 0)
+                )
+        doc.storeToURL(destUrl, outProps)
+        doc.close(True)
+                
+
+        #Pre-process the ODT file
+        odt = zipfile.ZipFile(tempOdtDest, "a")
+        RemoveExtraImages(odt)
+        bookmarker = Bookmarker(odt)
+
+        
+        fileUrl = systemPathToFileUrl(tempOdtDest)
+        doc = desktop.loadComponentFromURL( fileUrl , "_blank", 0, inProps )
+        if not doc:
+                raise UnoException( "Couldn't open stream for unknown reason", None )
+        
+
+
+
+        #Save as HTML
+        if htmlDir:
+            tempDest = os.path.join(tempDir, "index.html")
+        else:
+            tempDest = os.path.join(tempDir, filestem + ".html")
+        
+        destUrl = systemPathToFileUrl(tempDest)
+        filterName = "HTML (StarWriter)"
+        #filtername = "writer_web_HTML_help"
+        extension  = "html"
+        outProps = (
+           PropertyValue( "FilterName" , 0, filterName , 0 ),
+           PropertyValue( "Overwrite" , 0, True , 0 ),
+           PropertyValue( "OutputStream", 0, OutputStream(), 0)
+        )
+        doc.storeToURL(destUrl, outProps)
+       
+        src_files = os.listdir(tempDir)
+        for file_name in src_files:
+                full_file_name = os.path.join(tempDir, file_name)
+                if (os.path.isfile(full_file_name) and full_file_name <> tempOdtDest) and not file_name.startswith("~"):
+                    shutil.copy(full_file_name, destDir)
+     
+        if wordDown:
+                myPath, myFile  = os.path.split(os.path.abspath(__file__))
+                command = ["phantomjs",os.path.join(myPath, "render.js"), systemPathToFileUrl(dest), dest]
+                subprocess.check_output(command)
+       
+        if epub:
+                epubDest = os.path.join(destDir, filestem + ".epub")
+                command = ["ebook-convert", dest, epubDest]
+                subprocess.check_output(command)
+
+        def getData(match):
+                imgName = urllib.unquote(match.group(2))
+                imgPath = os.path.join(destDir,imgName)
+                imgData = base64.b64encode(open(imgPath).read())
+                os.remove(imgPath)
+                #TODO - proper mime type
+                mime, encoding = mimetypes.guess_type(imgPath)
+                return "%sdata:%s;base64,%s%s" % (match.group(1), mime, imgData, match.group(3))
+
+        if dataURIs:
+                html = open(dest, "r").read()
+                html = re.sub('(<IMG.*?SRC=")(.*?)(".*?>)',getData, html,flags=re.IGNORECASE)
+                open(dest, "w").write(html).close()
+
+        if htmlDir:
+            pass #TODO: README FILE
+
+        print "Saved: " + dest
+
+    except IOException, e:
+          sys.stderr.write( "Error during conversion: " + e.Message + "\n" )
+          retVal = 1
+    except UnoException, e:
+          sys.stderr.write( "Error ("+repr(e.__class__)+") during conversion:" + e.Message + "\n" )
+          retVal = 1
+    if doc:
+          doc.dispose()
 
 class OutputStream( Base, XOutputStream ):
     def __init__( self ):
@@ -50,9 +191,43 @@ def RemoveExtraImages(odfZip):
 	contentRoot = contentXml.getroot()
 	removeFrames(contentRoot)
 		
-	odfZip.writestr("content.xml",etree.tostring(contentRoot))
 
-	
+
+
+    
+def usage():
+    sys.stderr.write( "usage: WordDownOO.py --help | "+
+                  "       [-c <connection-string> | --connection-string=<connection-string>\n"+
+		  "       [--pdf]\n"+
+		  "       [--noWordDown]\n"+
+                  "       [--dataURIs]\n" + 
+	          "       [--daemon]\n" + 
+                  "       [--recursive]\n" 
+                  "       [--force]\n" + 
+                  "       [--htmlDir]\n" + 
+                  "       inputFile [outputDir]\n"+
+                  "\n" +
+                  "Exports documents as HTML, and runs them through WordDown to clean them up\n" +
+                  "Requires an OpenOffice.org instance to be running. The script and the\n"+
+                  "running OpenOffice.org instance must be able to access the file with\n"+
+                  "by the same system path. [ To have a listening OpenOffice.org instance, just run:\n"+
+		  "openoffice \"-accept=socket,host=localhost,port=2002;urp;\" \n"
+                  "\n"+
+                  "-c <connection-string> | --connection-string=<connection-string>\n" +
+                  "        The connection-string part of a uno url to where the\n" +
+                  "        the script should connect to in order to do the conversion.\n" +
+                  "        The strings defaults to socket,host=localhost,port=2002\n" +
+                  "--noWordDown \n" +
+                  "        Do not run WordDown javascript code\n" +
+                  "--pdf \n" +
+                  "        Export PDF as well as HTML (TODO)\n" +
+		  " --dataURIs \n "+
+                  "        Convert images to Data URIs embedded in the HTML" +
+		  " --epub\n" + 
+		  "	   Make an EPUB ebook (using Calibre ebook-convert)" +
+                  " --htmlDir\n" +
+                  "        Write output to a directory named for the original file + '_html/'"
+                  )
 
    	 
     
@@ -65,7 +240,7 @@ def main():
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hc:",
-            ["help", "connection-string=" ,  "pdf", "noWordDown", "recursive", "daemon", "epub", "force"])
+            ["help", "connection-string=" ,  "pdf", "noWordDown", "recursive", "daemon", "epub", "force", "htmlDir"])
         wordDown = True #default to nice clean HTML
 	dataURIs = False
 	deleteOutputDir = False
@@ -73,6 +248,7 @@ def main():
 	recursive = False
 	force = False
 	daemon = False
+        htmlDir = False
         for o, a in opts:
             if o in ("-h", "--help"):	
                 usage()
@@ -93,6 +269,8 @@ def main():
 		daemon = True
 	    if o == "--force":
 		force = True
+            if o  == "--htmlDir":
+                htmlDir = True
                 
         if not len(args) or len(args) > 2:
             usage()
@@ -119,18 +297,22 @@ def main():
 		            if destDir <> None:
 			        relpath = os.path.relpath(filePath, path)
 			        dest = os.path.join(destDir, relpath)
+                            elif htmlDir:
+                                dest = "%s_html" % filePath
 			    else:
 			        dest = os.path.join(root,"_html")
-			    convert(filePath, dest, wordDown, dataURIs, epub, force)
+			    convert(filePath, dest, wordDown, dataURIs, epub, force, htmlDir)
             	keepGoing = daemon
 	else:
-	    if destDir <> None:
-	         discardThis, outFilename = os.path.split(path)
+	    #if destDir <> None:
+            #    discardThis, outFilename = os.path.split(path)
+            if htmlDir:
+                destDir = "%s_html" % path
 	    else:
-	        outPath = path 
+	        #outPath = path 
                 destDir, outFilename = os.path.split(path)
 	        destDir = os.path.join(destDir,"_html")
-            convert(path, destDir, wordDown, dataURIs, epub, force)
+            convert(path, destDir, wordDown, dataURIs, epub, force, htmlDir)
     except UnoException, e:
         sys.stderr.write( "Error ("+repr(e.__class__)+") :" + e.Message + "\n" )
         retVal = 1
@@ -140,171 +322,14 @@ def main():
         retVal = 1
     sys.exit(retVal)
 
-def convert(path, destDir, wordDown, dataURIs, epub, force):
-	#todo - get rid of outFilename
-        
-        #todo - only run if there has been a change
-
-        print "starting"
-        url = "uno:socket,host=localhost,port=2002;urp;StarOffice.ComponentContext"
-
-	if not os.path.exists(destDir):
-	           os.makedirs(destDir)
-	(tempVa, outFilename) = os.path.split(path)
-	(filestem, ext) = os.path.splitext(outFilename)
-	#Final HTML pathname
-
-        
-	dest = os.path.join(destDir, filestem + ".html")
-
-	#Check up-to-dateness		
-	if os.path.exists(dest) and  os.path.getmtime(dest) > os.path.getmtime(path) and not force:
-		return
-		
-	tempDir = tempfile.mkdtemp()
-        ctxLocal = uno.getComponentContext()
-        smgrLocal = ctxLocal.ServiceManager
-
-        resolver = smgrLocal.createInstanceWithContext(
-                 "com.sun.star.bridge.UnoUrlResolver", ctxLocal)
-        ctx = resolver.resolve(url)
-        smgr = ctx.ServiceManager
-
-        desktop = smgr.createInstanceWithContext("com.sun.star.frame.Desktop", ctx )
-
-        cwd = systemPathToFileUrl( getcwd() )
-
-     
-        inProps = PropertyValue( "Hidden" , 0 , True, 0 ),
-
-        try:
-		#Open initial document
-		fileUrl = systemPathToFileUrl(path)
-		doc = desktop.loadComponentFromURL( fileUrl , "_blank", 0, inProps )
-		if not doc:
-			raise UnoException( "Couldn't open stream for unknown reason", None )
- 
-		#obsolete & slow
-		#lists = compileListInfo(doc) 
-		#addBookmarks(doc, lists)
-		
-		#Write to temp and copy out later
- 		
-		tempOdtDest = os.path.join(tempDir, filestem + "_new.odt")
-		
-		destUrl = systemPathToFileUrl(tempOdtDest)
-		
-		#Save as ODT
-		filterName = "writer8"
-       		extension  = "odt"
-		
-      		outProps = (
-           	   PropertyValue( "FilterName" , 0, filterName , 0 ),
-	    	   PropertyValue( "Overwrite" , 0, True , 0 ),
-           	   PropertyValue( "OutputStream", 0, OutputStream(), 0)
-		)
-		doc.storeToURL(destUrl, outProps)
-		doc.close(True)
-		
-
-		#Pre-process the ODT file
-		odt = zipfile.ZipFile(tempOdtDest, "a")
-		RemoveExtraImages(odt)
-		bookmarker = Bookmarker(odt)
-
-		
-		fileUrl = systemPathToFileUrl(tempOdtDest)
-		doc = desktop.loadComponentFromURL( fileUrl , "_blank", 0, inProps )
-		if not doc:
-			raise UnoException( "Couldn't open stream for unknown reason", None )
-	        
+def makeReadme(originalPath,title):
+    readmeString = """
+    <html><head>%(title)s;</head><body><a href="index.html">%(title)s</a></body></html>
+    """
+    readme = BeautifulSoup(readmeString)
+    return readme.prettify()
 
 
-
-		#Save as HTML
-		tempDest = os.path.join(tempDir, filestem + ".html")
-		destUrl = systemPathToFileUrl(tempDest)
-		filterName = "HTML (StarWriter)"
-		#filtername = "writer_web_HTML_help"
-       		extension  = "html"
-      		outProps = (
-           	   PropertyValue( "FilterName" , 0, filterName , 0 ),
-	    	   PropertyValue( "Overwrite" , 0, True , 0 ),
-           	   PropertyValue( "OutputStream", 0, OutputStream(), 0)
-		)
-		doc.storeToURL(destUrl, outProps)
-		print "Done OOO"
-		src_files = os.listdir(tempDir)
-	        for file_name in src_files:
-    			full_file_name = os.path.join(tempDir, file_name)
-    			if (os.path.isfile(full_file_name) and full_file_name <> tempOdtDest) and not file_name.startswith("~"):
-    			    shutil.copy(full_file_name, destDir)
-
-		if wordDown:
-			myPath, myFile  = os.path.split(os.path.abspath(__file__))
-			command = ["phantomjs",os.path.join(myPath, "render.js"), systemPathToFileUrl(dest), dest]
-			subprocess.check_output(command)
-		if epub:
-			epubDest = os.path.join(destDir, filestem + ".epub")
-			command = ["ebook-convert", dest, epubDest]
-			subprocess.check_output(command)
-
-		def getData(match):
-			imgName = urllib.unquote(match.group(2))
-			imgPath = os.path.join(destDir,imgName)
-			imgData = base64.b64encode(open(imgPath).read())
-			os.remove(imgPath)
-			#TODO - proper mime type
-			mime, encoding = mimetypes.guess_type(imgPath)
-			return "%sdata:%s;base64,%s%s" % (match.group(1), mime, imgData, match.group(3))
-
-		if dataURIs:
-			html = open(dest, "r").read()
-			html = re.sub('(<IMG.*?SRC=")(.*?)(".*?>)',getData, html,flags=re.IGNORECASE)
-			open(dest, "w").write(html)
-		print "Saved: " + dest
-
-        except IOException, e:
-      	  sys.stderr.write( "Error during conversion: " + e.Message + "\n" )
-      	  retVal = 1
-        except UnoException, e:
-      	  sys.stderr.write( "Error ("+repr(e.__class__)+") during conversion:" + e.Message + "\n" )
-      	  retVal = 1
-        if doc:
-      	  doc.dispose()
-
-    
-def usage():
-    sys.stderr.write( "usage: WordDownOO.py --help | "+
-                  "       [-c <connection-string> | --connection-string=<connection-string>\n"+
-		  "       [--pdf]\n"+
-		  "       [--noWordDown]\n"+
-                  "       [--dataURIs]\n" + 
-	          "       [--daemon]\n" + 
-                  "       [--recursive]\n" 
-                  "       [--force]\n" + 
-                  "       inputFile [outputDir]\n"+
-                  "\n" +
-                  "Exports documents as HTML, and runs them through WordDown to clean them up\n" +
-                  "Requires an OpenOffice.org instance to be running. The script and the\n"+
-                  "running OpenOffice.org instance must be able to access the file with\n"+
-                  "by the same system path. [ To have a listening OpenOffice.org instance, just run:\n"+
-		  "openoffice \"-accept=socket,host=localhost,port=2002;urp;\" \n"
-                  "\n"+
-                  "-c <connection-string> | --connection-string=<connection-string>\n" +
-                  "        The connection-string part of a uno url to where the\n" +
-                  "        the script should connect to in order to do the conversion.\n" +
-                  "        The strings defaults to socket,host=localhost,port=2002\n" +
-                  "--noWordDown \n" +
-                  "        Do not run WordDown javascript code\n" +
-                  "--pdf \n" +
-                  "        Export PDF as well as HTML (TODO)\n" +
-		  " --dataURIs \n "+
-                  "        Convert images to Data URIs embedded in the HTML" +
-		  " --epub\n" + 
-		  "	   Make an EPUB ebook (using Calibre ebook-convert)"
-		  
-                  )
 
 if __name__ == "__main__":
     main()

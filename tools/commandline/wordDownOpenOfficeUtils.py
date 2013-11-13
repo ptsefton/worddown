@@ -6,50 +6,57 @@ import re
 class Bookmarker():
     #
     def __init__(self, odfZip):
-	self._count = 0
-	self._ns = Namespaces()
-	self.pTag = "{%s}p" % self._ns.get("text")
-	self.hTag = "{%s}h" % self._ns.get("text")
-	self._listTag = "{%s}list" % self._ns.get("text")
-	self._styleNameAttributeName =  "{%s}style-name" % self._ns.get("text")
-	self.bookmarkTag = "{%s}bookmark" % self._ns.get("text")
-	self.bookmarkNameAttribute = "{%s}name" % self._ns.get("text")
-	self.styles = Styles(odfZip)
-	#Add bookmarks directly to content.xml with stylename and left margin
+        self._count = 0
+        self._ns = Namespaces()
+        self.pTag = "{%s}p" % self._ns.get("text")
+        self.hTag = "{%s}h" % self._ns.get("text")
+        self._listTag = "{%s}list" % self._ns.get("text")
+        self._styleNameAttributeName =  "{%s}style-name" % self._ns.get("text")
+        self.bookmarkTag = "{%s}bookmark" % self._ns.get("text")
+        self.bookmarkNameAttribute = "{%s}name" % self._ns.get("text")
+        self.styles = Styles(odfZip)
+        #Add bookmarks directly to content.xml with stylename and left margin
         contentXml = etree.parse(odfZip.open("content.xml"))
-	#Exposing this for testing purposes
+        #Exposing this for testing purposes
         self.contentRoot = contentXml.getroot()
-	self._traverseDocAddingBookmarks(self.contentRoot)
-	odfZip.writestr("content.xml",etree.tostring(self.contentRoot))
-	odfZip.close()
+        self._traverseDocAddingBookmarks(self.contentRoot)
+        odfZip.writestr("content.xml",etree.tostring(self.contentRoot))
+        odfZip.close()
 	
-    def _traverseDocAddingBookmarks(self, el, level = 0):
+    def _traverseDocAddingBookmarks(self, el, level = 0, prevMarginLeft = "0"):
         for subEl in el.xpath("*"):
-	   if subEl.tag in (self.pTag, self.hTag): #TODO - include headings in this
-		style = subEl.get(self._styleNameAttributeName)
+            if subEl.tag in (self.pTag, self.hTag): #TODO - include headings in this
+                style = subEl.get(self._styleNameAttributeName)
 
-		#Add left margin info in bookmark
-		bookmark = etree.Element(self.bookmarkTag)
-		marginLeft = self.styles.getParaMarginLeft(style, level)
-		#Remove units - all we need are absolute numbers
-		#for relative indents
-		marginLeft = re.sub("[^\W\d]*", "", str(marginLeft))
-		bookmark.attrib[self.bookmarkNameAttribute] = "left-margin:%s :::%s" %\
-			 (marginLeft, str(self._count))
-		
-		subEl.append(bookmark) 
-		
-		#Add style info in bookmark
-		bookmark = etree.Element(self.bookmarkTag)
-		bookmark.attrib[self.bookmarkNameAttribute] = "style:%s :::%s" %\
-			 (self.styles.getDisplayName(style), str(self._count))
-		self._count += 1
-		subEl.append(bookmark) 
-	   elif subEl.tag == self._listTag:
-	   	self._traverseDocAddingBookmarks(subEl, level + 1)
-	   else:
-	 	self._traverseDocAddingBookmarks(subEl,level)					
+                #Add left margin info in bookmark
+                bookmark = etree.Element(self.bookmarkTag)
+                marginLeft = self.styles.getParaMarginLeft(style, level)
+                #Remove units - all we need are absolute numbers
+                #for relative indents
+                marginLeft = re.sub("[^\W\d]*", "", str(marginLeft))
+                if marginLeft == "": marginLeft = "0"
+                deltaIsSmall = abs(float(marginLeft) - float(prevMarginLeft)) < (float(marginLeft) / 10)
+                if deltaIsSmall:
+	                marginLeft = prevMarginLeft
+                bookmark.attrib[self.bookmarkNameAttribute] = "left-margin:%s :::%s" %\
+	                 (marginLeft, str(self._count))
 
+                subEl.append(bookmark) 
+
+                #Add style info in bookmark
+                bookmark = etree.Element(self.bookmarkTag)
+                bookmark.attrib[self.bookmarkNameAttribute] = "style:%s :::%s" %\
+	                 (self.styles.getDisplayName(style), str(self._count))
+                self._count += 1
+                subEl.append(bookmark) 
+                prevMarginLeft = marginLeft
+
+
+            elif subEl.tag == self._listTag: 	
+                prevMarginLeft = self._traverseDocAddingBookmarks(subEl, level + 1, prevMarginLeft)
+            else:
+                prevMarginLeft = self._traverseDocAddingBookmarks(subEl,level, prevMarginLeft)					
+        return prevMarginLeft
 
   
 	

@@ -410,13 +410,16 @@ function getBaselineIndentAndDataAtts(node) {
   		
    }
 
+   function uwrapSelector(node, selector) {
+	node.children(selector).each(function() {
+		jQ(this).find("*:first").unwrap();
+	})
+   }
+
    function unwrapLists(node) {
-	  
-	   while (node.children("ul, ol, li").length) {
-	   	 node.children("ol").children("*").first().unwrap();
-	  	 node.children("ul").children("*").first().unwrap();
-	  	 node.children("li").children("*").first().unwrap();	
-   	    }
+	uwrapSelector(node, "ul");
+	uwrapSelector(node, "ol");
+	uwrapSelector(node, "li");
    }
    function labelListParas(node) {
   	node.children("ul,ol").each(
@@ -432,13 +435,15 @@ function getBaselineIndentAndDataAtts(node) {
 				
 			}
 
-			//Sometimes Word puts <p> in <li>, sometimes not
-			//So normalise this to always have p
-	 		list.find("li:not(:has(p))").each(function() {
-				jQ(this).children().wrap("<p> </p>");
-
-			});
+			
+	 		
 			list.children("li").each(function(){
+				//Sometimes Word puts <p> in <li>, sometimes not
+				//So normalise this to always have p
+				if (!jQ(this).children("p, h1, h2, h3, h4, h5, h6").length) {
+				      jQ(this).children().wrap("<p> </p>");
+				  
+				}
                                jQ(this).children("p").each(function ()
 				{
 					getClass(jQ(this));
@@ -489,7 +494,7 @@ function getBaselineIndentAndDataAtts(node) {
 		var listType = jQ(this).attr("data-listType");
 		var headingLevel = jQ(this).attr("data-headingLevel");
 		var classs = jQ(this).attr("data-class") ? jQ(this).attr("data-class") :  "";
-		jQ(this).removeAttr("align")	
+		//jQ(this).removeAttr("align")	
 		if (type === 'h') {
 			
 			if (jQ(this).parents("table").length) {
@@ -690,6 +695,14 @@ function removeEmpties(doc) {
 	
 }
 
+function removeHeaderAndFooter(doc) {
+	//Remove Empty paragraphs and 
+	doc.find("div[type='FOOTER'], div[type='HEADER']").each(function () {
+	  jQ(this).remove();
+	});
+	
+}
+
 function convert() {
     jQ("o\\:p, meta[name], object").remove();
 	while (jQ("o:SmartTagType").length){ 
@@ -698,7 +711,7 @@ function convert() {
 	//jQ("hr").parent().remove();
 
  	removeEmpties(jQ("body"));
-	
+	removeHeaderAndFooter(jQ("body"));
 	jQ("p[class^='MsoToc']").remove();
 	
 	//Extract the style info to make a lookup table for classes
@@ -744,8 +757,7 @@ function convert() {
 	});
 	
         //TODO - generalise this to work with other vocabs - eg lists 
-	jQ("table[title^='Slide:']").each(function() {
-	   
+	jQ("table[title^='Slide:']").each(function() {	   
 		var paras = jQ(this).find("td, th").children();
 		var slide = jQ("<section typeof='http://purl.org/ontology/bibo/Slide' >");
 		jQ(this).replaceWith(slide);
@@ -766,7 +778,7 @@ function convert() {
 		var parser = document.createElement('a');
 		parser.href = href;
 		vocab = parser.protocol + "//" + parser.host + "/"; 
-		jQ(container).attr("vocab",vocab);  
+		jQ(container).attr("vocab",vocab);
 
 		container.attr("typeof", typeProp[0]);
 
@@ -988,6 +1000,7 @@ function convert() {
    word2html.getLeftMargin = getLeftMargin;
    word2html.processparas = processparas;
    word2html.flattenLists = flattenLists;
+   word2html.removeHeaderAndFooter = removeHeaderAndFooter;
    return word2html;
 }
 

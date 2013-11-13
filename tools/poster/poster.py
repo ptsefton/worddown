@@ -23,6 +23,8 @@
 import xmlrpc.client, http.client, argparse, re, uuid, os.path, base64, codecs, urllib.parse
 from getpass import getpass
 
+from bs4 import BeautifulSoup
+
 
 
 #Python docs are wrong on how to do this. Fix from here: http://www.python-forum.de/viewtopic.php?f=3&t=28245
@@ -67,31 +69,28 @@ class Poster:
  
                 html = f.read();
                 (filePath,filename)= os.path.split(file)
-                #TODO post images first...
-		
-		#I know, regex to process HTML! but it's impossible to install
-		# a sensible python3 XML/HTML library on OS X in less than a day
-		
-                #TODO - remove case sensitivity
-                html = re.sub(".*<body.*?>", "", html)
-                html = re.sub("</body>.*", "", html)
+                h = BeautifulSoup(html)
+                
+                #title = h.title.string
+                title = ""
                 srcs = dict()
 
-		#Find title?
-                #TODO - make this configurable
-                titleMatcher = "<h1.*?>(.*?)</h1>"
-                titleMatch = re.search(titleMatcher, html)
-                title = "Untitled"
-                if titleMatch != None:
-                    title = titleMatch.group(1)
+	
+                def findSrc(el,att):
+                   for e in h.findAll(el):
+                     if not(re.match("^https?://", e[att])):
+                       srcs[e[att]] = e[att]
 
-                srcMatch = re.compile(r"<img[^>]*src=(\"|')(.*?)\1")
-                httpMatch = re.compile("https?:")
-                #Find all the image src atts
-                for m in srcMatch.finditer(html):
-                        src = m.group(2)
-                        if not httpMatch.match(src):
-                                srcs[src] = src
+                def fixSrc(el,att):
+                        for e in h.findAll(el):
+                          if e[att] in srcs:
+                            e[att] = srcs[e[att]]
+                #TODO: deal with http images
+                findSrc("img","src")
+                findSrc("object","data")
+
+                print(srcs)
+                
                                 
                 for imgFile in srcs.keys():
                         data = {}
@@ -106,10 +105,12 @@ class Poster:
                         data['bits'] = xmlrpc.client.Binary(contents)
                         
                         wpImg = self.server.wp.uploadFile(self.blogid,self.username,self.password,data)
-                        html = re.sub(r"(<img[^>]*src=)(\"|')%s(\2)" % imgFile, r"\1\2%s\3" % wpImg['url'], html) 
+                        srcs[imgFile] = wpImg['url']
                         print("Uploaded an image")
                         print(wpImg)
-
+                fixSrc("img","src")
+                fixSrc("object","data")
+                html = h.prettify()
                 content = {}
                 content['name'] = title
                 print("TYPE:" +  postType)
