@@ -1,0 +1,8 @@
+[Core]
+Name = Office Document Converter Plugin
+Module = OfficeDocConverterPlugin
+
+[Documentation]
+Author = Peter Sefton
+Version = 0.1
+Description = OpenOffice/StartOffice     based plugin 
