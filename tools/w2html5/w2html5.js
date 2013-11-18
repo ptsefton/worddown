@@ -50,7 +50,8 @@ function word2HML5Factory(jQ) {
 		[/H(ead)?(ing)? ?5.*/i ,6],
 		[/^(mso)?title/i, 1]
 		
-	]		
+	]
+    config.stylesToRemove=["standard","normal","western", "List Paragraph"]
 	
     
 
@@ -248,18 +249,21 @@ function addLineBreaks(text) {
  function getClass(el) {
 	//In Word docs the class will be there, in OpenOffice docs it has to be pre-processed
         //and stashed in a bookmark
-	var classAnchor = el.find("a[name^='style:']")
+	var classAnchor = el.find("a[name^='style:']");
+    var classString = String(el.attr("class") ? el.attr("class") :   "");
 	if (classAnchor.length) {
 		classString = classAnchor.attr("name");
 		classString = classString.replace("style:","");
 		classString = classString.replace(/ :::.*/,"");
 		classAnchor.remove();
-		el.attr("class",classString);
-	} 
-	el.attr("data-class",  el.attr("class") ? String(el.attr("class")) : "");
-	
+        el.attr("class", classString);
+   
+	}
+   
+	el.attr("data-class",  classString);
 	return  el.attr("data-class");
 }
+
 
    function getType(el) {
 		
@@ -268,7 +272,7 @@ function addLineBreaks(text) {
 
 
 		var classs = getClass(el);
-                //Look up the list we parsed out of CSS earlier
+        //Look up the list we parsed out of CSS earlier
 		if (classs in classNames) {
 			classs = classNames[classs];
 		}
@@ -613,7 +617,7 @@ function getBaselineIndentAndDataAtts(node) {
 
 		
 		if (type == "pre") {
-					//TODO: Get rid of this repetition (but note you have to add jQ(this) to para b4 wrapping or it won't work)
+					//TODO: Get rid of this repetition
 					//console.log("PRE" + jQ(this).html());
 					//jQ(this).appendTo(state.getCurrentContainer());
 					if (jQ(this).parent("pre").length) {					    
@@ -672,11 +676,8 @@ function getBaselineIndentAndDataAtts(node) {
 		}
 		else {
 			jQ(this).attr("style",style);
-		}
-		
-                
+		}         
 	});
-	
 	el.unwrap();	
 	el.removeAttr("class");
    }
@@ -702,6 +703,23 @@ function removeHeaderAndFooter(doc) {
 	});
 	
 }
+
+
+//TODO move to general cleanup function
+function cleanUpSpansAndAtts(body) {
+        //Remove rubbish from body element
+	    var unwantedSpans = "span[class='SpellE'],span[lang^='EN'], span[class='GramE'], span[style], span[data], font";
+        temp = jQ("<span></span>");
+	    body.find(unwantedSpans).each(function() {
+            jQ(this).append(temp);
+            temp.unwrap();
+            temp.remove();
+        });
+        body.find("p[style], i[style], b[style]").each(function(){jQ(this).removeAttr("style");});
+	    body.find("v:shapetype, v:group").remove();
+        
+        
+    }
 
 function convert() {
     jQ("o\\:p, meta[name], object").remove();
@@ -819,26 +837,22 @@ function convert() {
 		container.removeAttr("class");
 	});
 	
-	//Clean it all up
-	//jQ("span[style] *:first-child").unwrap();
-
+	
         
 	jQ("span[mso-spacerun]").replaceWith(" ");
 	
 	
 	
-        
-	jQ("p[style], i[style], b[style]").each(function(){jQ(this).removeAttr("style");});
-	
-	jQ("v:shapetype, v:group").remove();
+ 
 	
         //Sledgehammer approach to endnotes and footnotes
 	jQ("a[style^='mso-endnote-id'], a[style^='mso-footnotenote-id']").each(function(){
 		jQ(this).removeAttr("style");
 		jQ(this).html("<sup>" + jQ(this).text()+ "</sup>");
 	});
-	
 
+
+    cleanUpSpansAndAtts(jQ("body"));
 	//Clean up the body tag
 	html = jQ("html");
  	html.removeAttr("xmlns");
@@ -975,15 +989,7 @@ function convert() {
 		}
 
 	});
-	//TODO make this configurable
-	//jQ.find("span[lang^='EN']").each(function() {jQ(this).replaceWith(jQ(this).html())});
-	//jQ.find("font").each(function() {jQ(this).replaceWith(jQ(this).html())});
-
-	//TODO move to general cleanup function
-	var unwantedSpans = "span[class='SpellE'], span[class='GramE'], span[style], span[data], font";
-	while (jQ(unwantedSpans).length) {
-		jQ(unwantedSpans).each(function(i) {jQ(this).replaceWith(jQ(this).html())});
-	}
+	
 
       
 	 	
@@ -1001,6 +1007,8 @@ function convert() {
    word2html.processparas = processparas;
    word2html.flattenLists = flattenLists;
    word2html.removeHeaderAndFooter = removeHeaderAndFooter;
+   word2html.getClass = getClass;
+   word2html.cleanUpSpansAndAtts = cleanUpSpansAndAtts;
    return word2html;
 }
 

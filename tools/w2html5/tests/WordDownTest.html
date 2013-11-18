@@ -14,13 +14,14 @@
   <script>
 
 function toHtml(node) {
-  return(node.innerHTML.replace(/\s+/g, " "));
+  node.removeAttribute("id");
+  return(node.outerHTML.replace(/\s+/g, " "));
   }
 
 function compareHtml(actual, expected, testName) {
   var areEqual = actual.isEqualNode(expected);
   if (areEqual) {
- 	ok(areEqual, testname);
+ 	ok(areEqual, testName);
   }
   else {
 	equal(toHtml(actual),toHtml(expected),testName);
@@ -28,6 +29,14 @@ function compareHtml(actual, expected, testName) {
 
 }
 
+
+  test("Get class", function () {
+	var w2h = word2HML5Factory($);
+    var input =  $("<p class='western'></p>");
+    var output = $("<p class='western' data-class='western'></p>");
+	w2h.getClass(input);
+	compareHtml(input[0], output[0], "Data class populated from class");
+   });
 
 
    test("Remove empty pars from OO document", function () {
@@ -79,7 +88,6 @@ test("Check list tagging", function() {
 	var newHtml = $("div#OOCodeWithNegativeHeadingIndentWithDataAtts").clone();
 	equal(w2h.getBaselineIndentAndDataAtts(html), "501", "Ignores heading indent uses least indent from a paragraph");
 	ok(html[0].isEqualNode(html[0]), "Lists removed, data attributes added for class and left-margin, anchors removed");
-	
    });
 
 
@@ -131,15 +139,15 @@ test("Check list tagging", function() {
 	var html  = $("div#remove-header-and-footer-in").clone();
 	w2h.removeHeaderAndFooter(html);
 	var newHtml = $("div#remove-header-and-footer-out").clone();
-	compareHtml(html[0], newHtml[0], "removed header");
+	compareHtml(html[0], newHtml[0], "Removed header");
 	
    });
    
    
-    test("Deal with OOO bug where it puts headings inside lists", function() {
+ test("Deal with OOO bug where it puts headings inside lists", function() {
 	var w2h = word2HML5Factory($);
 	var html = $("div#open-office-headings-in-lists-bug-in").clone();
-	html = w2h.processparas(html);
+	w2h.processparas(html);
 	 
 	var newHtml = $("div#open-office-headings-in-lists-bug-out").clone();
 	
@@ -148,6 +156,19 @@ test("Check list tagging", function() {
    });
    
    
+ test("Test removing Font tags", function() {
+	var w2h = word2HML5Factory($);
+    var html = $("<body></body>");
+	html.html("<font color='#0000000'>Some <font style='something'>text</font></font>");
+   
+	w2h.cleanUpSpansAndAtts(html);
+     
+    var newHtml = $("<body></body>");
+    newHtml.html("Some text");
+
+	compareHtml(html[0], newHtml[0], "Got rid of nested font tags");
+	
+   });
    
    
    

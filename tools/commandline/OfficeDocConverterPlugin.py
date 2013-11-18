@@ -23,7 +23,9 @@ class PandocConverterPlugin(HTMLFormatter):
                           "sig"   : "WordDown",\
                           "name"  : "OpenOffice based markdown converter"}]
         self.port = 2002
+           
         self. startup()
+ 
 
     def convertOffice(self, actableFile):
         """Simple conversion script that runs WordDown
@@ -31,12 +33,17 @@ class PandocConverterPlugin(HTMLFormatter):
         You need to have an OpenOffice variant installed, and 
         http://code.google.com/p/jischtml5/tools/commandline in your path
         """
-       
+        if "preferDataURIS" in self.config:
+            self.preferDataURIs = True
+        else:
+            self.preferDataURIs = self.config["preferDataURIs"]
+            
+        
         #For now this is calling python as process
         #TODO Need to turn WordDown into a module and fix this
         print "Running  WordDown on " + actableFile.path
         WordDownOO.convert(actableFile.path, actableFile.dirname,
-                           True, False, False, True, True)
+                           True, self.preferDataURIs, False, True, True)
         
         
     def print_name(self):

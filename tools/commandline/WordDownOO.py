@@ -88,6 +88,8 @@ def convert(path, destDir, wordDown, dataURIs, epub, force, htmlDir):
         #Pre-process the ODT file
         odt = zipfile.ZipFile(tempOdtDest, "a")
         RemoveExtraImages(odt)
+ 
+  
         bookmarker = Bookmarker(odt)
 
         
@@ -142,10 +144,12 @@ def convert(path, destDir, wordDown, dataURIs, epub, force, htmlDir):
                 return "%sdata:%s;base64,%s%s" % (match.group(1), mime, imgData, match.group(3))
 
         if dataURIs:
-                html = open(dest, "r").read()
-                html = re.sub('(<IMG.*?SRC=")(.*?)(".*?>)',getData, html,flags=re.IGNORECASE)
-                open(dest, "w").write(html).close()
-
+                try:
+                    html = open(dest, "r").read()
+                    html = re.sub('(<IMG.*?SRC=")(.*?)(".*?>)',getData, html,flags=re.IGNORECASE)
+                    open(dest, "w").write(html)#.close()
+                except:
+                    print "Could not create Data URIS ",  sys.exc_info()[0]
         if htmlDir:
             pass #TODO: README FILE
 
@@ -171,25 +175,29 @@ class OutputStream( Base, XOutputStream ):
         pass
 
 def removeFrames(root):
+    """ Remove all frames containing drawings before first p"""
     ns = Namespaces()
     pTag = "{%s}p" % ns.get("text")
     drawTag = "{%s}frame" % ns.get("draw")
     bodyEls = "*/*/*" # % ns.get("office")
- 
+    
     for subEl in root.xpath(bodyEls):
-	if subEl.tag == drawTag:
-		subEl.getparent().remove(subEl)
-	elif subEl.tag == pTag:
-		return
+        if subEl.tag == drawTag:
+            subEl.getparent().remove(subEl)
+        elif subEl.tag == pTag:
+	        return
 
 def RemoveExtraImages(odfZip):
-	#Nasty hack - remove draw frames before first P - this may kill some legit placed in frames
-	#anchored to the doc, but when LibreOffice 3.5  saves .docx files to .odt it adds duplicate images
-	#at the top of the doc
-	
-	contentXml = etree.parse(odfZip.open("content.xml"))
-	contentRoot = contentXml.getroot()
-	removeFrames(contentRoot)
+    """Nasty hack to clean documents opened as docx and saved as odt
+       openoffice adds extra images.
+       
+       TODO shift this to the javasscript part of the tool"""
+       
+    contentXml = etree.parse(odfZip.open("content.xml"))
+    contentRoot = contentXml.getroot()
+    removeFrames(contentRoot)
+    odfZip.writestr("content.xml",etree.tostring(contentRoot))
+    #odfZip.close()
 		
 
 
@@ -240,87 +248,86 @@ def main():
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hc:",
-            ["help", "connection-string=" ,  "pdf", "noWordDown", "recursive", "daemon", "epub", "force", "htmlDir"])
+                 ["help", "connection-string=" ,  "pdf", "noWordDown", "recursive",
+                 "daemon", "epub", "force", "htmlDir", "dataURIs"])
         wordDown = True #default to nice clean HTML
-	dataURIs = False
-	deleteOutputDir = False
-	epub = False
-	recursive = False
-	force = False
-	daemon = False
+        dataURIs = False
+        deleteOutputDir = False
+        epub = False
+        recursive = False
+        force = False
+        daemon = False
         htmlDir = False
-        for o, a in opts:
+        for o, a in opts:       
             if o in ("-h", "--help"):	
                 usage()
                 sys.exit()
-           # if o == "--pdf":
-           #     exportPDF = True #TODO
-	    if o == "--noWordDown":
-		wordDown = False
-	    if o == "--dataURIs":
-		dataURIs = True
-	    if o == "--deleteOutputDir":
-		deleteOutputDir = True
-	    if o == "--epub":
-		epub = True
-	    if o == "--recursive":
-		recursive = True
+            # if o == "--pdf":
+            #     exportPDF = True #TODO
+            if o == "--noWordDown":
+                wordDown = False
+            if o == "--dataURIs":
+                dataURIs = True
+            if o == "--deleteOutputDir":
+                deleteOutputDir = True
+            if o == "--epub":
+                epub = True
+            if o == "--recursive":
+                recursive = True
             if o == "--daemon":
-		daemon = True
-	    if o == "--force":
-		force = True
+                daemon = True
+            if o == "--force":
+                force = True
             if o  == "--htmlDir":
                 htmlDir = True
-                
+
         if not len(args) or len(args) > 2:
             usage()
             sys.exit()
 
-	path = args[0]
-	path = os.path.abspath(path)
-	
+        path = args[0]
+        path = os.path.abspath(path)
+
         
-	if len(args) == 2:
-	    destDir = args[1]
-	else:
-	    destDir = None
+        if len(args) == 2:
+            destDir = args[1]
+        else:
+            destDir = None
 
 
-	if recursive:
-	    keepGoing = True
+        if recursive:
+            keepGoing = True
             while keepGoing:
-		for root, dirs, files in os.walk(path):
-		    for f in files:
-		        filePath = os.path.join(root,f)
-		        (stem, ext) = os.path.splitext(filePath)
-		        if ext in (".doc",".odt",".docx"):	
-		            if destDir <> None:
-			        relpath = os.path.relpath(filePath, path)
-			        dest = os.path.join(destDir, relpath)
+                for root, dirs, files in os.walk(path):
+                    for f in files:
+                        filePath = os.path.join(root,f)
+                        (stem, ext) = os.path.splitext(filePath)
+                        if ext in (".doc",".odt",".docx"):	
+                            if destDir <> None:
+                                relpath = os.path.relpath(filePath, path)
+                                dest = os.path.join(destDir, relpath)
                             elif htmlDir:
                                 dest = "%s_html" % filePath
-			    else:
-			        dest = os.path.join(root,"_html")
-			    convert(filePath, dest, wordDown, dataURIs, epub, force, htmlDir)
-            	keepGoing = daemon
-	else:
-	    #if destDir <> None:
-            #    discardThis, outFilename = os.path.split(path)
+                            else:
+                                dest = os.path.join(root,"_html")
+                            convert(filePath, dest, wordDown, dataURIs, epub, force, htmlDir)
+            keepGoing = daemon
+        else:
             if htmlDir:
-                destDir = "%s_html" % path
-	    else:
-	        #outPath = path 
+               destDir = "%s_html" % path
+            else:
                 destDir, outFilename = os.path.split(path)
-	        destDir = os.path.join(destDir,"_html")
+                destDir = os.path.join(destDir,"_html")
             convert(path, destDir, wordDown, dataURIs, epub, force, htmlDir)
     except UnoException, e:
-        sys.stderr.write( "Error ("+repr(e.__class__)+") :" + e.Message + "\n" )
-        retVal = 1
+                sys.stderr.write( "Error ("+repr(e.__class__)+") :" + e.Message + "\n" )
+                retVal = 1
+                
     except getopt.GetoptError,e:
-        sys.stderr.write( str(e) + "\n" )
-        usage()
-        retVal = 1
-    sys.exit(retVal)
+                sys.stderr.write( str(e) + "\n" )
+                usage()
+                retVal = 1
+                sys.exit(retVal)
 
 def makeReadme(originalPath,title):
     readmeString = """
