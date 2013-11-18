@@ -3,6 +3,7 @@ from categories import HTMLFormatter
 import subprocess
 import os
 import WordDownOO
+import json
 
 class PandocConverterPlugin(HTMLFormatter):
     """ OpenOffice/Libre office based document converter.
@@ -23,7 +24,13 @@ class PandocConverterPlugin(HTMLFormatter):
                           "sig"   : "WordDown",\
                           "name"  : "OpenOffice based markdown converter"}]
         self.port = 2002
-           
+        self.config = json.load(open("dispatcher-config.json"))
+        #TODO - work out how to pass this in from __main__
+        if "preferDataURIS" in self.config:
+            self.preferDataURIs = True
+        else:
+            self.preferDataURIs = self.config["preferDataURIs"]
+            
         self. startup()
  
 
@@ -32,12 +39,9 @@ class PandocConverterPlugin(HTMLFormatter):
         Get WordDown from http://code.google.com/p/jischtml5/
         You need to have an OpenOffice variant installed, and 
         http://code.google.com/p/jischtml5/tools/commandline in your path
+       
         """
-        if "preferDataURIS" in self.config:
-            self.preferDataURIs = True
-        else:
-            self.preferDataURIs = self.config["preferDataURIs"]
-            
+        
         
         #For now this is calling python as process
         #TODO Need to turn WordDown into a module and fix this
