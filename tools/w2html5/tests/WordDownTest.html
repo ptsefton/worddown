@@ -78,7 +78,33 @@ test("Check list tagging", function() {
 
    });
 
-
+ test("Check removal of align attributes", function() {
+     //Want to keep center and right align ditch left and justify
+     var w2h = word2HML5Factory($);
+     var p = $("<p align='RIGHT'>My p</p>");
+     var p1 = p.clone();
+     w2h.getRidOfStyleAndClass(p);
+     compareHtml(p[0],p1[0]);
+     var p2 = $("<p align='LEFT'>My p</p>");
+     var p3 = $("<p>My p</p>");
+     w2h.getRidOfStyleAndClass(p2);
+     compareHtml(p2[0],p3[0]);
+ 
+ });
+ 
+  test("Check removal of styles attributes", function() {
+     //Want to keep center and right align ditch left and justify
+     var w2h = word2HML5Factory($);
+     var p = $("<p align='' class='SomeCustomStyle'>My p</p>");
+     var p1 = p.clone();
+     w2h.getRidOfStyleAndClass(p);
+     compareHtml(p[0],p1[0]);
+     var p2 = $("<p class='Standard'>My p</p>");
+     var p3 = $("<p>My p</p>");
+     w2h.getRidOfStyleAndClass(p2);
+     compareHtml(p2[0],p3[0]);
+ 
+ });
 
  test("Check minimum left-indent & data attributes", function() {
         //This code is not written in a way that makes true unit testing possible, so these are more like regression tests
@@ -100,14 +126,32 @@ test("Check list tagging", function() {
 	var container = $("<article>  </article>");
 	
 	html = w2h.processparas(html);
-	
-          
 	var newHtml = $("div#bullets-in-tables-out").clone();
  	
 	compareHtml(html[0], newHtml[0], "Lists work inside tables");
 	
    });
-
+ test("Make sure lists end properly", function() {
+	var w2h = word2HML5Factory($);
+	var html = $("div#heading-between-lists-in").clone();
+	w2h.convert(html);
+	 
+	var newHtml = $("div#heading-between-lists-out").clone();
+	
+	compareHtml(html[0], newHtml[0], "Correctly ended first list");
+	
+   });
+   
+ test("Make sure lists end properly even when Open Office puts a heading in a list for no good reason", function() {
+	var w2h = word2HML5Factory($);
+	var html = $("div#list-bug-heading-between-lists-in").clone();
+	w2h.convert(html);
+	 
+	var newHtml = $("div#list-bug-heading-between-lists-out").clone();
+	
+	compareHtml(html[0], newHtml[0], "Correctly ended first list");
+	
+   });
  test("Check list types for ODF docs", function() {
 	var w2h = word2HML5Factory($);
 	var html = $("div#open-office-lists-in").clone();
@@ -176,6 +220,55 @@ test("Check list tagging", function() {
   </script>
 
 
+<div id="heading-between-lists-in">
+<UL>
+<LI><P>Met with Communications working
+	group and created action items for the group</P>
+</UL>
+<H1>Tasks Completed This Week</H1>
+<UL>
+	<LI><P>Alpha version of “Of the web”
+	code</P>
+</UL>
+</div>
+<div id="heading-between-lists-out">
+<ul>
+<li><p>Met with Communications working
+	group and created action items for the group</p></li>
+</ul>
+<h1>Tasks Completed This Week</h1>
+<ul>
+<li><p>Alpha version of “Of the web”
+	code</p></li>
+</ul>
+</div>
+
+<div id="list-bug-heading-between-lists-in">
+<UL>
+<LI><P STYLE="margin-bottom: 0cm"><A NAME="style:List Paragraph :::18"></A><A NAME="left-margin:0.635 :::18"></A>
+	Met with Communications working group and created action items for
+	the group</P>
+</UL>
+<OL START=2>
+	<LI><H1 CLASS="western"><A NAME="style:Heading 1 :::19"></A><A NAME="left-margin:0.762 :::19"></A>
+	Tasks Completed This Week</H1>
+</OL>
+<UL>
+	<LI><P STYLE="margin-bottom: 0cm"><A NAME="style:List Paragraph :::20"></A><A NAME="left-margin:0.635 :::20"></A>
+	Alpha version of “Of the web” code</P>
+</div>
+
+<div id="list-bug-heading-between-lists-out">
+<ul>
+<li><p>Met with Communications working
+	group and created action items for the group</p></li>
+</ul>
+<h1>Tasks Completed This Week</h1>
+<ul>
+<li><p>Alpha version of “Of the web”
+	code</p></li>
+</ul>
+</div>
 
 
 <div id="OOCodeWithEmptyPars-in">

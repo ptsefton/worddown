@@ -51,7 +51,7 @@ function word2HML5Factory(jQ) {
 		[/^(mso)?title/i, 1]
 		
 	]
-    config.stylesToRemove=["standard","normal","western", "List Paragraph"]
+    config.stylesToRemove=["standard","Standard", "Plain Text", "Default", "Normal (web)", "Normal","Western", "List Paragraph"]
 	
     
 
@@ -199,12 +199,19 @@ function word2HML5Factory(jQ) {
 	
 	}
 	function getRidOfStyleAndClass(element) {
-		jQ(element).removeAttr("style");
+	    //Remove standard class names, all styles and left or justify alignment
+		element.removeAttr("style");
+		if (element.attr("align") && element.attr("align").search(/^((justify)|(left))/i) > -1) {
+		    element.removeAttr("align");
+		}
+		if (config.stylesToRemove.indexOf(element.attr("class")) > -1) {
+		    element.removeAttr("class");
+		}
 		//jQ(element).removeAttr("class");
 	}
 
  function processparas(node) {
-	  var container = jQ("<article></article>")	
+	  var container = jQ("<article></article>");
    	 //container.append(node)
 	 
 	 reformatChunk(node, container);
@@ -497,8 +504,8 @@ function getBaselineIndentAndDataAtts(node) {
 		var margin = parseFloat(jQ(this).attr("data-margin-left"));
 		var listType = jQ(this).attr("data-listType");
 		var headingLevel = jQ(this).attr("data-headingLevel");
+		//TODO - remove this repetion - there's another place we deal with class
 		var classs = jQ(this).attr("data-class") ? jQ(this).attr("data-class") :  "";
-		//jQ(this).removeAttr("align")	
 		if (type === 'h') {
 			
 			if (jQ(this).parents("table").length) {
@@ -533,7 +540,6 @@ function getBaselineIndentAndDataAtts(node) {
 		else { //Not a heading
 				state.setCurrentIndent(margin);
 		}
-		
 		//Get rid of formatting now
 		getRidOfStyleAndClass(jQ(this));
 		
@@ -1009,6 +1015,7 @@ function convert() {
    word2html.removeHeaderAndFooter = removeHeaderAndFooter;
    word2html.getClass = getClass;
    word2html.cleanUpSpansAndAtts = cleanUpSpansAndAtts;
+   word2html.getRidOfStyleAndClass = getRidOfStyleAndClass;
    return word2html;
 }
 
