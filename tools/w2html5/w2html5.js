@@ -392,7 +392,6 @@ function getBaselineIndentAndDataAtts(node) {
 	//To do this, also works out what type each paragraph is
 	//So we end up with data attributes on all paragraphs/headings ready to reformat
 	var leastIndent = 10000; //Silly large number
-	
 	node.children("p, h1, h2, h3, h4, h5").each(
 		function (index) {
 			getType(jQ(this));	
@@ -435,6 +434,7 @@ function getBaselineIndentAndDataAtts(node) {
    function labelListParas(node) {
   	node.children("ul,ol").each(
 		function() {
+                        
 			var list = jQ(this);
 			var listType;
 			if (this.nodeName === "UL") {
@@ -507,7 +507,8 @@ function getBaselineIndentAndDataAtts(node) {
 		//TODO - remove this repetion - there's another place we deal with class
 		var classs = jQ(this).attr("data-class") ? jQ(this).attr("data-class") :  "";
 		if (type === 'h') {
-			
+			state.setCurrentIndent(leastIndent);
+			state.levelDown();
 			if (jQ(this).parents("table").length) {
 			   //TODO - Make this slide handling much more general-purpose
                            // Need a convention for making a one-cell table that is just there to create a section/slide etc 
@@ -728,6 +729,7 @@ function cleanUpSpansAndAtts(body) {
     }
 
 function convert() {
+     
     jQ("o\\:p, meta[name], object").remove();
 	while (jQ("o:SmartTagType").length){ 
 		jQ("o:SmartTagType *").first().unwrap();
@@ -748,6 +750,7 @@ function convert() {
 		classNames[match[1]] = match[2].replace(/\\/g,"").replace(/"/g,"");
 		match = re.exec(styleInfo);
 	}
+	
 	//Start by string-processing MSO markup into something we can read and reloading
 	if (jQ("article").length) {
 		return ; //Don't run twice
@@ -761,14 +764,14 @@ function convert() {
    
 	//Get rid of the worst of the embedded stuff from Word
 	jQ("xml").remove();
-	
+	alert("Process");
 	
 	while (jQ("div").length) {
 	    //console.log(jQ("div").html());
 		jQ("div").each(function(i) {jQ(this).replaceWith(jQ(this).html() );});
 	}
 	
-
+        alert("Process");
 	
 	processparas(jQ("body"));
 	

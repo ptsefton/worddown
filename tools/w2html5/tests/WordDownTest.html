@@ -134,18 +134,30 @@ test("Check list tagging", function() {
  test("Make sure lists end properly", function() {
 	var w2h = word2HML5Factory($);
 	var html = $("div#heading-between-lists-in").clone();
-	w2h.convert(html);
+	w2h.processparas(html);
 	 
 	var newHtml = $("div#heading-between-lists-out").clone();
 	
 	compareHtml(html[0], newHtml[0], "Correctly ended first list");
 	
    });
-   
- test("Make sure lists end properly even when Open Office puts a heading in a list for no good reason", function() {
+    test("Make sure lists can be flattened even when Open Office puts a heading in a list for no good reason", function() {
+
 	var w2h = word2HML5Factory($);
 	var html = $("div#list-bug-heading-between-lists-in").clone();
-	w2h.convert(html);
+	w2h.flattenLists(html);
+	 
+	var newHtml = $("div#list-bug-heading-between-lists-out").clone();
+	
+	compareHtml(html[0], newHtml[0], "Correctly ended first list");
+	
+   });
+ test("Make sure lists end properly even when Open Office puts a heading in a list for no good reason", function() {
+
+	var w2h = word2HML5Factory($);
+	var html = $("div#list-bug-heading-between-lists-in").clone();
+        w2h.flattenLists(html);
+	w2h.processparas(html);
 	 
 	var newHtml = $("div#list-bug-heading-between-lists-out").clone();
 	
@@ -189,6 +201,7 @@ test("Check list tagging", function() {
    
    
  test("Deal with OOO bug where it puts headings inside lists", function() {
+       
 	var w2h = word2HML5Factory($);
 	var html = $("div#open-office-headings-in-lists-bug-in").clone();
 	w2h.processparas(html);
@@ -221,6 +234,7 @@ test("Check list tagging", function() {
 
 
 <div id="heading-between-lists-in">
+
 <UL>
 <LI><P>Met with Communications working
 	group and created action items for the group</P>
@@ -230,8 +244,11 @@ test("Check list tagging", function() {
 	<LI><P>Alpha version of “Of the web”
 	code</P>
 </UL>
+
 </div>
+
 <div id="heading-between-lists-out">
+
 <ul>
 <li><p>Met with Communications working
 	group and created action items for the group</p></li>
@@ -256,9 +273,11 @@ test("Check list tagging", function() {
 <UL>
 	<LI><P STYLE="margin-bottom: 0cm"><A NAME="style:List Paragraph :::20"></A><A NAME="left-margin:0.635 :::20"></A>
 	Alpha version of “Of the web” code</P>
+
 </div>
 
 <div id="list-bug-heading-between-lists-out">
+<body>
 <ul>
 <li><p>Met with Communications working
 	group and created action items for the group</p></li>
@@ -268,6 +287,7 @@ test("Check list tagging", function() {
 <li><p>Alpha version of “Of the web”
 	code</p></li>
 </ul>
+</body>
 </div>
 
 
