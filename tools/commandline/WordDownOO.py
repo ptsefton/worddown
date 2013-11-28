@@ -23,26 +23,16 @@ from wordDownOpenOfficeUtils import Namespaces
 
 from lxml import etree
 
-def convert(path, destDir, wordDown, dataURIs, epub, force, htmlDir):
+def convert(path, dest, wordDown, dataURIs, epub):
     url = "uno:socket,host=localhost,port=2002;urp;StarOffice.ComponentContext"
 
-
-    (tempVa, outFilename) = os.path.split(path)
+    (destDir,outFilename) = os.path.split(dest)
     (filestem, ext) = os.path.splitext(outFilename)
-    #Final HTML pathname
-    if htmlDir:
-            dest = os.path.join(destDir, "index.html")
-    else:
-            dest = os.path.join(destDir, filestem + ".html")
-            
+      
   
     if not os.path.exists(destDir):
         os.makedirs(destDir)
-    #Check up-to-dateness		
-    if not force\
-       and os.path.exists(dest) \
-       and  os.path.getmtime(dest) > os.path.getmtime(path):
-        return
+   
                 
     tempDir = tempfile.mkdtemp()
     ctxLocal = uno.getComponentContext()
@@ -102,10 +92,9 @@ def convert(path, destDir, wordDown, dataURIs, epub, force, htmlDir):
 
 
         #Save as HTML
-        if htmlDir:
-            tempDest = os.path.join(tempDir, "index.html")
-        else:
-            tempDest = os.path.join(tempDir, filestem + ".html")
+        tempDest = os.path.join(tempDir, outFilename)
+        #else:
+        #    tempDest = os.path.join(tempDir, filestem + ".html")
         
         destUrl = systemPathToFileUrl(tempDest)
         filterName = "HTML (StarWriter)"
@@ -123,16 +112,16 @@ def convert(path, destDir, wordDown, dataURIs, epub, force, htmlDir):
                 full_file_name = os.path.join(tempDir, file_name)
                 if (os.path.isfile(full_file_name) and full_file_name <> tempOdtDest) and not file_name.startswith("~"):
                     shutil.copy(full_file_name, destDir)
-     
         if wordDown:
                 myPath, myFile  = os.path.split(os.path.abspath(__file__))
-                command = ["phantomjs",os.path.join(myPath, "render.js"), systemPathToFileUrl(dest), dest]
-                subprocess.check_output(command)
+                command = ["phantomjs",os.path.join(myPath, "render.js"), systemPathToFileUrl(dest), dest]      
+                subprocess.call(command)
+
        
         if epub:
                 epubDest = os.path.join(destDir, filestem + ".epub")
                 command = ["ebook-convert", dest, epubDest]
-                subprocess.check_output(command)
+                subprocess.call(command)
 
         def getData(match):
                 imgName = urllib.unquote(match.group(2))
@@ -150,8 +139,7 @@ def convert(path, destDir, wordDown, dataURIs, epub, force, htmlDir):
                     open(dest, "w").write(html)#.close()
                 except:
                     print "Could not create Data URIS ",  sys.exc_info()[0]
-        if htmlDir:
-            pass #TODO: README FILE
+
 
         print "Saved: " + dest
 
@@ -209,10 +197,9 @@ def usage():
 		  "       [--pdf]\n"+
 		  "       [--noWordDown]\n"+
                   "       [--dataURIs]\n" + 
-	          "       [--daemon]\n" + 
-                  "       [--recursive]\n" 
+	          
                   "       [--force]\n" + 
-                  "       [--htmlDir]\n" + 
+                  
                   "       inputFile [outputDir]\n"+
                   "\n" +
                   "Exports documents as HTML, and runs them through WordDown to clean them up\n" +
@@ -232,9 +219,8 @@ def usage():
 		  " --dataURIs \n "+
                   "        Convert images to Data URIs embedded in the HTML" +
 		  " --epub\n" + 
-		  "	   Make an EPUB ebook (using Calibre ebook-convert)" +
-                  " --htmlDir\n" +
-                  "        Write output to a directory named for the original file + '_html/'"
+		  "	   Make an EPUB ebook (using Calibre ebook-convert)" 
+                 
                   )
 
    	 
@@ -248,16 +234,14 @@ def main():
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hc:",
-                 ["help", "connection-string=" ,  "pdf", "noWordDown", "recursive",
-                 "daemon", "epub", "force", "htmlDir", "dataURIs"])
+                 ["help", "connection-string=" ,  "pdf", "noWordDown", "epub", "dataURIs"])
         wordDown = True #default to nice clean HTML
         dataURIs = False
         deleteOutputDir = False
         epub = False
-        recursive = False
-        force = False
-        daemon = False
-        htmlDir = False
+  
+
+
         for o, a in opts:       
             if o in ("-h", "--help"):	
                 usage()
@@ -272,14 +256,9 @@ def main():
                 deleteOutputDir = True
             if o == "--epub":
                 epub = True
-            if o == "--recursive":
-                recursive = True
-            if o == "--daemon":
-                daemon = True
-            if o == "--force":
-                force = True
-            if o  == "--htmlDir":
-                htmlDir = True
+
+       
+
 
         if not len(args) or len(args) > 2:
             usage()
@@ -287,38 +266,17 @@ def main():
 
         path = args[0]
         path = os.path.abspath(path)
-
-        
+        dir, outFilename = os.path.split(path)
+        filestem, ext = os.path.splitext(outFilename)
         if len(args) == 2:
             destDir = args[1]
+            dest = os.path.join(destDir, filestem + ".html")
         else:
-            destDir = None
+            destDir = os.path.join(dir,"_html",outFilename)
+            dest = os.path.join(destDir,"index.html")
+        #Todo deal with destdir
+        convert(path, dest, wordDown, dataURIs, epub)
 
-
-        if recursive:
-            keepGoing = True
-            while keepGoing:
-                for root, dirs, files in os.walk(path):
-                    for f in files:
-                        filePath = os.path.join(root,f)
-                        (stem, ext) = os.path.splitext(filePath)
-                        if ext in (".doc",".odt",".docx"):	
-                            if destDir <> None:
-                                relpath = os.path.relpath(filePath, path)
-                                dest = os.path.join(destDir, relpath)
-                            elif htmlDir:
-                                dest = "%s_html" % filePath
-                            else:
-                                dest = os.path.join(root,"_html")
-                            convert(filePath, dest, wordDown, dataURIs, epub, force, htmlDir)
-            keepGoing = daemon
-        else:
-            if htmlDir:
-               destDir = "%s_html" % path
-            else:
-                destDir, outFilename = os.path.split(path)
-                destDir = os.path.join(destDir,"_html")
-            convert(path, destDir, wordDown, dataURIs, epub, force, htmlDir)
     except UnoException, e:
                 sys.stderr.write( "Error ("+repr(e.__class__)+") :" + e.Message + "\n" )
                 retVal = 1

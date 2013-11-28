@@ -764,14 +764,14 @@ function convert() {
    
 	//Get rid of the worst of the embedded stuff from Word
 	jQ("xml").remove();
-	alert("Process");
+
 	
 	while (jQ("div").length) {
 	    //console.log(jQ("div").html());
 		jQ("div").each(function(i) {jQ(this).replaceWith(jQ(this).html() );});
 	}
 	
-        alert("Process");
+  
 	
 	processparas(jQ("body"));
 	

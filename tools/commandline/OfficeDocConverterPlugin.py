@@ -26,10 +26,10 @@ class PandocConverterPlugin(HTMLFormatter):
         self.port = 2002
         self.config = json.load(open("dispatcher-config.json"))
         #TODO - work out how to pass this in from __main__
-        if "preferDataURIS" in self.config:
-            self.preferDataURIs = True
-        else:
+        if "preferDataURIs" in self.config:
             self.preferDataURIs = self.config["preferDataURIs"]
+        else:
+            self.preferDataURIs = false
             
         self. startup()
  
@@ -46,8 +46,8 @@ class PandocConverterPlugin(HTMLFormatter):
         #For now this is calling python as process
         #TODO Need to turn WordDown into a module and fix this
         print "Running  WordDown on " + actableFile.path
-        WordDownOO.convert(actableFile.path, actableFile.dirname,
-                           True, self.preferDataURIs, False, True, True)
+        WordDownOO.convert(actableFile.path, actableFile.indexHTML,
+                           True, self.preferDataURIs, False)
         
         
     def print_name(self):

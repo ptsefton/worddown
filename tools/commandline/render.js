@@ -11,6 +11,7 @@ if (phantom.args.length < 2 || phantom.args.length > 3) {
     page.open(address, function (status) {
         if (status !== 'success') {
             console.log('Unable to load the address!');
+	    console.log(address);
         } else {
             window.setTimeout(function () {
 				page.injectJs('../w2html5/jquery-1.6.4.js');
