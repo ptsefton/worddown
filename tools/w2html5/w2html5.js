@@ -406,7 +406,7 @@ function getBaselineIndentAndDataAtts(node) {
 		}
 	);
 	flattenLists(node);
-        return leastIndent;
+    return leastIndent;
 
    }
    function flattenLists(node) {
@@ -415,13 +415,14 @@ function getBaselineIndentAndDataAtts(node) {
    //So rip out all the lists and rebuild based on paragraph left margin,
    //wiki-markup style
    	labelListParas(node);
+   	
 	unwrapLists(node);
    
   		
    }
 
    function uwrapSelector(node, selector) {
-	node.children(selector).each(function() {
+	node.find(selector).each(function() {
 		jQ(this).find("*:first").unwrap();
 	})
    }
@@ -431,6 +432,8 @@ function getBaselineIndentAndDataAtts(node) {
 	uwrapSelector(node, "ol");
 	uwrapSelector(node, "li");
    }
+   
+   
    function labelListParas(node) {
   	node.children("ul,ol").each(
 		function() {
@@ -455,13 +458,15 @@ function getBaselineIndentAndDataAtts(node) {
 				      jQ(this).children().wrap("<p> </p>");
 				  
 				}
-                               jQ(this).children("p").each(function ()
+                jQ(this).children("p").each(function ()
 				{
 					getClass(jQ(this));
 					getLeftMargin(jQ(this));
 					jQ(this).attr("data-listType",listType);
+					
 					jQ(this).attr("data-type","li");
-				        labelListParas(jQ(this));
+					
+				    labelListParas(jQ(this));
 					
 					
 			        });
@@ -500,13 +505,16 @@ function getBaselineIndentAndDataAtts(node) {
 	//Main formatting code 
 	
 	node.children().each(function (index) {
+	
 		var type = jQ(this).attr("data-type");
 		var margin = parseFloat(jQ(this).attr("data-margin-left"));
 		var listType = jQ(this).attr("data-listType");
 		var headingLevel = jQ(this).attr("data-headingLevel");
 		//TODO - remove this repetion - there's another place we deal with class
 		var classs = jQ(this).attr("data-class") ? jQ(this).attr("data-class") :  "";
+		
 		if (type === 'h') {
+		    
 			state.setCurrentIndent(leastIndent);
 			state.levelDown();
 			if (jQ(this).parents("table").length) {
