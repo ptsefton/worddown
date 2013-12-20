@@ -211,20 +211,17 @@ function word2HML5Factory(jQ) {
 	}
 
  function processparas(node) {
-	  var container = jQ("<article></article>");
+	 var container = jQ("<article></article>");
    	 //container.append(node)
-	 
 	 reformatChunk(node, container);
-	 
    	 container.find("td, th").each(function() {
 		
 		 reformatChunk(jQ(this), jQ(this));
 	  });
-	  
 	node.prepend(container);
 	return node;
-	
  }
+ 
  function removeLineBreaks(text) {
 		return text.replace(/(\r\n|\n|\r)/gm," ");
 	  }
@@ -272,7 +269,7 @@ function addLineBreaks(text) {
 }
 
 
-   function getType(el) {
+  function getType(el) {
 		
 		//Default to plain P
 		el.attr("data-type", "p");
@@ -349,7 +346,6 @@ function addLineBreaks(text) {
 			//Try to work out its type
 	
 			number = el.find("span[style='mso-list:Ignore']").text();
-		
 			if (number.search(/A/) > -1) {
 				listType = "A";
 			}
@@ -405,6 +401,9 @@ function getBaselineIndentAndDataAtts(node) {
 			}
 		}
 	);
+	if (leastIndent = 10000) {
+	    leastIndent = 0;
+	}
 	flattenLists(node);
     return leastIndent;
 
@@ -415,27 +414,25 @@ function getBaselineIndentAndDataAtts(node) {
    //So rip out all the lists and rebuild based on paragraph left margin,
    //wiki-markup style
    	labelListParas(node);
-   	
-	unwrapLists(node);
    
+	unwrapLists(node);
+  
   		
    }
 
-   function uwrapSelector(node, selector) {
-	node.find(selector).each(function() {
-		jQ(this).find("*:first").unwrap();
-	})
-   }
-
+ 
    function unwrapLists(node) {
-	uwrapSelector(node, "ul");
-	uwrapSelector(node, "ol");
-	uwrapSelector(node, "li");
+    node.children("ul, ol, li").each(function(){
+        unwrapLists(jQ(this));
+        jQ(this).children().first().unwrap();
+        
+    });
    }
    
    
    function labelListParas(node) {
   	node.children("ul,ol").each(
+  	    
 		function() {
                         
 			var list = jQ(this);
@@ -458,7 +455,15 @@ function getBaselineIndentAndDataAtts(node) {
 				      jQ(this).children().wrap("<p> </p>");
 				  
 				}
-                jQ(this).children("p").each(function ()
+				
+				jQ(this).children("h1, h2, h3, h4, h5, h6").each(function()
+		        {
+		            getType(jQ(this));
+		            getLeftMargin(jQ(this));
+		            labelListParas(jQ(this));
+		        });
+		        
+                jQ(this).children("p").each(function()
 				{
 					getClass(jQ(this));
 					getLeftMargin(jQ(this));
@@ -467,7 +472,7 @@ function getBaselineIndentAndDataAtts(node) {
 					jQ(this).attr("data-type","li");
 					
 				    labelListParas(jQ(this));
-					
+		
 					
 			        });
 				labelListParas(jQ(this));
@@ -476,8 +481,8 @@ function getBaselineIndentAndDataAtts(node) {
 			labelListParas(list);	
 			
 		});
-
-}
+      
+    }
 
    function removeTempDataAttributes(node) {
 	node.removeAttr("data-headingLevel");
@@ -490,17 +495,14 @@ function getBaselineIndentAndDataAtts(node) {
 
 
    function reformatChunk(node, container) {
-
-	var leastIndent = getBaselineIndentAndDataAtts(node);
-	
+    var leastIndent = getBaselineIndentAndDataAtts(node);
 	var state = stateFactory(container, leastIndent);
-
-	//TODO Does this ever run????
-	if (jQ(this).get(0).nodeName === 'TABLE') {
+    if (jQ(this).get(0).nodeName === 'TABLE') {
+      state.setCurrentIndent(leastIndent);
+	    state.levelDown();
 		state.getCurrentContainer().append(jQ(this));
 		return;
 	}
-	
 
 	//Main formatting code 
 	
@@ -510,59 +512,50 @@ function getBaselineIndentAndDataAtts(node) {
 		var margin = parseFloat(jQ(this).attr("data-margin-left"));
 		var listType = jQ(this).attr("data-listType");
 		var headingLevel = jQ(this).attr("data-headingLevel");
-		//TODO - remove this repetion - there's another place we deal with class
 		var classs = jQ(this).attr("data-class") ? jQ(this).attr("data-class") :  "";
 		
 		if (type === 'h') {
-		    
 			state.setCurrentIndent(leastIndent);
 			state.levelDown();
-			if (jQ(this).parents("table").length) {
-			   //TODO - Make this slide handling much more general-purpose
-                           // Need a convention for making a one-cell table that is just there to create a section/slide etc 
-			   if (classs == "Slide") {
-					//Slide microformat
-					var title = jQ(this).parents("table").first().attr("title");
-					jQ(this).parents("table").first().attr("title","Slide: " + title);
-				
+			state.setHeadinglevel(headingLevel);
+		    state.headingLevelDown(); //unindent container elements where necessary	
+			
+			if (state.headingNestingNeeded()){        
+				var newSection = jQ("<section></section>");
+				if (classs.indexOf("typeof-") === 0) {
+					newSection.attr("typeof",classs.replace(/^typeof-/,""));
 				}
+				else if (classs == "Slide") {
+					newSection.attr("typeof", "http://purl.org/ontology/bibo/Slide");
+				}
+				else if (classs == "Notes") {
+					newSection = jQ("<details></details>");
+				}
+				state.pushHeadingState(newSection);
 			}
-		        else {
-			   	state.setHeadinglevel(headingLevel);
-				state.headingLevelDown(); //unindent container elements where necessary
-			
-			
-			
-				if (state.headingNestingNeeded()){        
-					var newSection = jQ("<section></section>");
-					if (classs.indexOf("typeof-") === 0) {
-						newSection.attr("typeof",classs.replace(/^typeof-/,""));
-					}
-					else if (classs == "Slide") {
-						newSection.attr("typeof", "http://purl.org/ontology/bibo/Slide");
-					}
-					state.pushHeadingState(newSection);
-					}
-				}
+				
 			
 		}
 		else { //Not a heading
 				state.setCurrentIndent(margin);
 		}
+		
+	
 		//Get rid of formatting now
 		getRidOfStyleAndClass(jQ(this));
-		
+		("Margin" + margin);
 		state.levelDown(); //If we're embedded too far, fix that
+		
 		//TODO fix nestingNeeded the check for 'h' is a hack
 		if (type==="bib") {
 			state.getCurrentContainer().append(jQ(this));
+			
 			if (!state.getCurrentContainer().filter("section[typeof='http://purl.org/orb/References']").length) {
 				jQ(this).wrap("<section typeof='http://purl.org/orb/References'></section>");
 				state.pushState(jQ(this).parent());
 			}
 		}
 		else if (!(type === "h") && state.nestingNeeded()) {
-			
 			//Put this inside the previous para element - we're going deeper
 			jQ(this).appendTo(state.getCurrentContainer());
 			
@@ -597,8 +590,9 @@ function getBaselineIndentAndDataAtts(node) {
 		}
 		else {//Indenting not needed
 			if (type == "li") {
-			    //Hack - check if we're actually in a list - warning copied code below TODO
-				if (!state.getCurrentContainer()) {
+			    //If this container is all list then we may still need to indent
+			    jQ(this).appendTo(state.getCurrentContainer());
+				if (false && !state.getCurrentContainer()) {
 					if (listType == "b") {
 					jQ(this).wrap("<ul><li></li></ul>");
 					}
@@ -617,10 +611,9 @@ function getBaselineIndentAndDataAtts(node) {
 			
 			}
 			else {
-			    //Hack - the state-stack is a mess
-				//if (state.getCurrentContainer().length) {
+			   
 				jQ(this).appendTo(state.getCurrentContainer());
-			    //}
+		
 				
 				if (type == "h") {
 					tag = "<h" + parseFloat(headingLevel) + " class=\"" + classs + "\">";
@@ -631,7 +624,7 @@ function getBaselineIndentAndDataAtts(node) {
 
 
 		
-		if (type == "pre") {
+		        if (type == "pre") {
 					//TODO: Get rid of this repetition
 					//console.log("PRE" + jQ(this).html());
 					//jQ(this).appendTo(state.getCurrentContainer());
@@ -650,6 +643,7 @@ function getBaselineIndentAndDataAtts(node) {
 			
 			}
 		removeTempDataAttributes(jQ(this));
+
 
 		}
 		
@@ -791,6 +785,7 @@ function convert() {
 		jQ(this).removeAttr("summary");
 	});
 	
+	/* TODO - REDO THIS - find slides in tables and unwrap them!
         //TODO - generalise this to work with other vocabs - eg lists 
 	jQ("table[title^='Slide:']").each(function() {	   
 		var paras = jQ(this).find("td, th").children();
@@ -798,6 +793,9 @@ function convert() {
 		jQ(this).replaceWith(slide);
 		paras.appendTo(slide);
 	});
+	*/
+	
+	
 	//Wordprocessor microformat - needs work.
 	
 	//TODO: Get rid of hard-wired vocab

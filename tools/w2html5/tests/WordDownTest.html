@@ -145,18 +145,30 @@ test("Check list tagging", function() {
 
 	var w2h = word2HML5Factory($);
 	var html = $("div#list-bug-heading-between-lists-in").clone();
-	w2h.flattenLists(html);
-	 
+	w2h.processparas(html);
 	var newHtml = $("div#list-bug-heading-between-lists-out").clone();
 	
 	compareHtml(html[0], newHtml[0], "Correctly ended first list");
 	
    });
+   
+    test("Basic heading handling", function() {
+
+	var w2h = word2HML5Factory($);
+	var html = $("div#heading-between-p-in").clone();
+	w2h.processparas(html);
+	
+	var newHtml = $("div#heading-between-p-out").clone();
+	compareHtml(html[0], newHtml[0], "Correctly ended first list");
+	
+   });
+   
   test("Deal with heading-in-list bug", function() {
 
 	var w2h = word2HML5Factory($);
 	var html = $("div#list-bug-heading-between-p-in").clone();
-	w2h.processparas(html);
+	w2h.flattenLists(html);
+	
 	var newHtml = $("div#list-bug-heading-between-p-out").clone();
 	compareHtml(html[0], newHtml[0], "Correctly ended first list");
 	
@@ -167,7 +179,7 @@ test("Check list tagging", function() {
 
 	var w2h = word2HML5Factory($);
 	var html = $("div#list-bug-heading-between-lists-in").clone();
-        w2h.flattenLists(html);
+  
 	w2h.processparas(html);
 	 
 	var newHtml = $("div#list-bug-heading-between-lists-out").clone();
@@ -270,6 +282,31 @@ test("Check list tagging", function() {
 	code</p></li>
 </ul>
 </div>
+<div id="heading-between-p-in">
+<p lang="en-AU" class="western" style="margin-left: 0.04cm; text-indent: -0.02cm; margin-bottom: 0.35cm">
+<span lang="en-US">Additionally, your Institute or School may have
+purchased software specific to your domain.</span></p>
+
+<h2 lang="en-AU" class="western"><span lang="en-US">Analytical
+		Tools</span></h2>
+<p lang="en-AU" class="western" style="margin-left: 0.04cm; text-indent: -0.02cm; margin-bottom: 0.35cm">
+<span lang="en-US">For those who are in the know about research
+software, the list below will give you a sense of the range of
+applications that people have used at UWS. This list is by no means
+exhaustive.</span></p>
+</div>
+
+<div id="heading-between-p-out"><article><p class="western" lang="en-AU">
+<span lang="en-US">Additionally, your Institute or School may have
+purchased software specific to your domain.</span></p><section><h3 class="western"><span lang="en-US">Analytical
+		Tools</span></h3><p class="western"  lang="en-AU">
+<span lang="en-US">For those who are in the know about research
+software, the list below will give you a sense of the range of
+applications that people have used at UWS. This list is by no means
+exhaustive.</span></p></section></article>
+</div>
+
+
 <div id="list-bug-heading-between-p-in">
 <p lang="en-AU" class="western" style="margin-left: 0.04cm; text-indent: -0.02cm; margin-bottom: 0.35cm">
 <span lang="en-US">Additionally, your Institute or School may have
@@ -299,6 +336,7 @@ exhaustive.</span></p></article>
 </div>
 
 <div id="list-bug-heading-between-lists-in">
+
 <UL>
 <LI><P STYLE="margin-bottom: 0cm"><A NAME="style:List Paragraph :::18"></A><A NAME="left-margin:0.635 :::18"></A>
 	Met with Communications working group and created action items for
@@ -311,21 +349,24 @@ exhaustive.</span></p></article>
 <UL>
 	<LI><P STYLE="margin-bottom: 0cm"><A NAME="style:List Paragraph :::20"></A><A NAME="left-margin:0.635 :::20"></A>
 	Alpha version of “Of the web” code</P>
+</UL>
 
 </div>
 
 <div id="list-bug-heading-between-lists-out">
-<body>
+<article>
 <ul>
 <li><p>Met with Communications working
 	group and created action items for the group</p></li>
 </ul>
-<h1>Tasks Completed This Week</h1>
+<section>
+<h2 class="Heading 1"> Tasks Completed This Week</h2>
 <ul>
-<li><p>Alpha version of “Of the web”
+<li><p> Alpha version of “Of the web”
 	code</p></li>
 </ul>
-</body>
+</section>
+</aricle>
 </div>
 
 
