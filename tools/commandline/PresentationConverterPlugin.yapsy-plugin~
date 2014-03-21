@@ -1,0 +1,8 @@
+[Core]
+Name = Presentation Converter Plugin
+Module = PresentationConverterPlugin
+
+[Documentation]
+Author = Peter Sefton
+Version = 0.1
+Description = Open/LibreOffice converter for PowerPoint style slide presentations
