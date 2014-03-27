@@ -2,6 +2,9 @@
 Convert a presentation (PowerPoint or Impress) to a single HTML page, with semantic markup 
 compatible with the J5Slide viewer.
 
+Uses unoconv to convert PPT et al into HTML, but via a subprocess system call
+TODO: Import unoconv directly via Python, and get it to restart OpenOffice when necessary
+
 """
 
 from bs4 import BeautifulSoup as bs
@@ -18,7 +21,7 @@ def createSlides(dest):
         return os.path.join(dest, "img%s.html" % str(num))
         
     #TODO, Add a standalone mode with embedded player <script type='text/javascript' src='./j5slide_embed.js'>
-    slides = u"<html><head></script></head><body>"
+    slides = u"<html><head> <meta charset='UTF-8'></script></head><body>"
 
     while os.path.exists(filename()):
                 raw = codecs.open(filename(),'r', 'utf-8').read()
@@ -50,8 +53,7 @@ def createSlides(dest):
 
 def convert(path, dest, destDir):
     tempFile = os.path.join(destDir, "temp.html")
-    command = ["./unoconv","-v", "-f", "html", "-e","IsExportNotes=True", "-o", tempFile, path]
-    print command        
+    command = ["./unoconv","-v", "-f", "html", "-e","IsExportNotes=True", "-o", tempFile, path]   
     subprocess.call(command)
     os.remove(tempFile)
     codecs.open(dest,'w', 'utf-8').write(createSlides(destDir))
