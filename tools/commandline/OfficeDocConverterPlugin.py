@@ -5,7 +5,7 @@ import os
 import WordDownOO
 import json 
 
-class PandocConverterPlugin(HTMLFormatter):
+class OfficeDocConverterPlugin(HTMLFormatter):
     """ OpenOffice/Libre office based document converter.
     
 
@@ -13,8 +13,7 @@ class PandocConverterPlugin(HTMLFormatter):
 
     def __init__(self):
         """ Create a new formatter for the dispatcher to use. """ 
-        print "Initialising Office doc plugin"
-        #Start openoffice
+        #TODO - need to Start openoffice
         #TODO get much more sophisticated with a daemon to keep it running
         #TODO Headless
         #subprocess.call(["soffice", 
@@ -45,9 +44,9 @@ class PandocConverterPlugin(HTMLFormatter):
         
         #For now this is calling python as process
         #TODO Need to turn WordDown into a module and fix this
-        print "Running  WordDown on " + actableFile.path
-        WordDownOO.convert(actableFile.path, actableFile.indexHTML,
-                           True, self.preferDataURIs, False)
+        self.logger.info( "Running  WordDown on " + actableFile.path)
+        self.logger.info(WordDownOO.convert(actableFile.path, actableFile.indexHTML,
+                           True, self.preferDataURIs, False))
         
         
     def print_name(self):
