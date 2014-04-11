@@ -53,11 +53,11 @@ def createSlides(dest):
 
 def convert(path, dest, destDir):
     tempFile = os.path.join(destDir, "temp.html")
-    command = ["./unoconv","-v", "-f", "html", "-e","IsExportNotes=True", "-o", tempFile, path]   
-    subprocess.call(command)
+    command = ["unoconv","-v", "-f", "html", "-e","IsExportNotes=True", "-o", tempFile, path]   
+    result = subprocess.call(command)
     os.remove(tempFile)
     codecs.open(dest,'w', 'utf-8').write(createSlides(destDir))
-    
+    return result
 
 
 

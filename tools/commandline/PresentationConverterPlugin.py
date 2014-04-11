@@ -42,7 +42,7 @@ class PresentationConverterPlugin(HTMLFormatter):
         
         #For now this is calling python as process
         #TODO Need to turn WordDown into a module and fix this
-        self.logger.info( "Running  Presentation conversion on " + actableFile.path)
+        self.logger.info( "Running  Presentation converter  on " + actableFile.path)
         self.logger.info(Present.convert(actableFile.path, actableFile.indexHTML, actableFile.dirname))
 
     def print_name(self):
