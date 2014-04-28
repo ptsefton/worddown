@@ -9,8 +9,10 @@ class PresentationConverterPlugin(HTMLFormatter):
 
     """
 
-    def __init__(self):
+    def initialize(self, logger, config):
         """ Create a new formatter for the dispatcher to use. """ 
+        self.logger = logger
+        self.config = config
         #TODO - need to Start openoffice
         #TODO get much more sophisticated with a daemon to keep it running
         #TODO Headless
@@ -21,7 +23,7 @@ class PresentationConverterPlugin(HTMLFormatter):
                           "sig"   : "Pres",
                           "name"  : "OpenOffice based presentation converter"}]
         self.port = 2002
-        self.config = json.load(open("dispatcher-config.json"))
+        
         #TODO - work out how to pass this in from __main__
         #if "preferDataURIs" in self.config:
         #    self.preferDataURIs = self.config["preferDataURIs"]

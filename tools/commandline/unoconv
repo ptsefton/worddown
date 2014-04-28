@@ -395,7 +395,8 @@ fmts.add('web', 'vor4', 'vor', 'StarWriter/Web 4.0 Template', 'StarWriter/Web 4.
 fmts.add('web', 'vor', 'vor', 'StarWriter/Web 5.0 Template', 'StarWriter/Web 5.0 Vorlage/Template') ### 7
 
 ### Spreadsheet
-fmts.add('spreadsheet', 'csv', 'csv', 'Text CSV', 'Text - txt - csv (StarCalc)') ### 16
+fmts.add('spreadsheet', 'csv', 'csv', 'Text CSV, first worksheet only', 'Text - txt - csv (StarCalc)') ### 16
+fmts.add('spreadsheet', 'csvsheets', 'csv', 'Text CSV, one file per worksheet', 'Text - txt - csv (StarCalc)') ### 16
 fmts.add('spreadsheet', 'dbf', 'dbf', 'dBASE', 'dBase') ### 22
 fmts.add('spreadsheet', 'dif', 'dif', 'Data Interchange Format', 'DIF') ### 5
 fmts.add('spreadsheet', 'fods', 'fods', 'OpenDocument Spreadsheet (Flat XML)', 'OpenDocument Spreadsheet Flat XML')
@@ -830,7 +831,8 @@ class Convertor:
             ### Load inputfile
             #inputprops = UnoProps(Hidden=True, ReadOnly=True, UpdateDocMode=QUIET_UPDATE)
             #To save individual CSV files from spreadsheets hidden needs to be turned off
-            inputprops = UnoProps(ReadOnly=True, UpdateDocMode=QUIET_UPDATE)
+            hidden =  (outputfmt.name != 'csvsheets')
+            inputprops = UnoProps(Hidden= hidden, ReadOnly=True, UpdateDocMode=QUIET_UPDATE)
 
 #            if op.password:
 #                info = UnoProps(algorithm-name="PBKDF2", salt="salt", iteration-count=1024, hash="hash")
@@ -909,12 +911,7 @@ class Convertor:
                     outputprops += UnoProps(FilterOptions="76")
 
                 elif outputfmt.filter == 'Text - txt - csv (StarCalc)':
-                    #outputprops += UnoProps(FilterOptions="44,34,76")
-
-                    outputprops += UnoProps(FilterOptions="44,34,76,,0,false,true,true")
-
-                     #FilterOptions="59,34,76,1"
-                    # 9,0,76,1,,0,false,true,true
+                    outputprops += UnoProps(FilterOptions="44,34,76")
 
 
             ### Cannot use UnoProps for FilterData property
@@ -938,19 +935,14 @@ class Convertor:
             try:
                 controller = document.getCurrentController()
                 sheets = document.getSheets()
-                info(1, 'found %d sheets' % sheets.getCount())
-
                 # iterate on all the spreadsheets in the document
                 enumeration = sheets.createEnumeration()
-                if sheets.getCount() > 0 and outputfmt.filter == 'Text - txt - csv (StarCalc)':
-                  #TODO - add a new option for multiple sheets
+                if outputfmt.name == 'csvsheets' and sheets.getCount() > 0:
                   while enumeration.hasMoreElements():
                       sheet = enumeration.nextElement()
                       name = sheet.getName()
-                      info(1, 'current sheet name is %s' % name)
                       controller.setActiveSheet(sheet)
-
-                      outfilename =  outputurl + name.replace(' ', '_') + ".csv"
+                      outfilename =  "%s-%s.csv" % (outputurl, name.replace(' ', '_'))
                       document.storeToURL(outfilename, outputprops)
                 else:
                       document.storeToURL(outputurl, outputprops)

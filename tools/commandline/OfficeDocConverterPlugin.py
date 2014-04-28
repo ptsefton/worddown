@@ -11,7 +11,9 @@ class OfficeDocConverterPlugin(HTMLFormatter):
 
     """
 
-    def __init__(self):
+    def initialize(self, logger, config):
+        self.logger = logger
+        self.config = config
         """ Create a new formatter for the dispatcher to use. """ 
         #TODO - need to Start openoffice
         #TODO get much more sophisticated with a daemon to keep it running
@@ -23,7 +25,6 @@ class OfficeDocConverterPlugin(HTMLFormatter):
                           "sig"   : "WordDown",\
                           "name"  : "OpenOffice based markdown converter"}]
         self.port = 2002
-        self.config = json.load(open("dispatcher-config.json"))
         #TODO - work out how to pass this in from __main__
         if "preferDataURIs" in self.config:
             self.preferDataURIs = self.config["preferDataURIs"]
