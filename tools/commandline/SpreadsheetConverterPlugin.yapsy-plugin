@@ -1,0 +1,8 @@
+[Core]
+Name = Spreadsheet Converter Plugin
+Module = SpreadsheetConverterPlugin
+
+[Documentation]
+Author = Peter Sefton
+Version = 0.1
+Description = OpenOffice or LibreOffice converter for PowerPoint style slide Spreadsheets
