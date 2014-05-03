@@ -25,12 +25,19 @@ class SpreadsheetConverterPlugin(HTMLFormatter):
         """Simple conversion script via unonconv
        
         """
+
+        try:
+            os.makedirs(actableFile.dirname)
+        except:
+            pass
         self.logger.info( "Running  Spreadsheet converter  on " + actableFile.path)
         command = ["unoconv","-v", "-f", "html", "-o",
                    actableFile.dirname, actableFile.path] 
        
-        
-        self.logger.info(subprocess.call(command))
+	print command
+	result = subprocess.call(command)
+	open(actableFile.indexHTML, 'w').write(str(result))        
+        self.logger.info(result)
         shutil.move(os.path.join(actableFile.dirname,actableFile.filestem + ".html"),
                actableFile.indexHTML)
         csv_command = ["unoconv","-v", "-f", "csvsheets", "-o",
