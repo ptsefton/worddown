@@ -93,8 +93,10 @@ function word2HML5Factory(jQ) {
 
 
 		function levelDown() {
-			while (state.currentIndent < state.indentStack[state.indentStack.length-1]) {
-				popState();
+		   	
+			while (state.indentStack.length > 0 && state.currentIndent < state.indentStack[state.indentStack.length-1]) {
+			   popState();
+			 
 			}
 			
 		}
@@ -122,8 +124,10 @@ function word2HML5Factory(jQ) {
 		state.getHeadingContainer = getHeadingContainer;
 		
 		function popState() {
-			state.indentStack.pop();
-			state.elementStack.pop();
+		    if (state.indentStack.length > 0 && state.elementStack.length > 0 ) {
+			    state.indentStack.pop();
+			    state.elementStack.pop();
+			}
 		}
 		state.popState = popState;
 
@@ -397,14 +401,18 @@ function getBaselineIndentAndDataAtts(node) {
 				var indent = parseFloat(jQ(this).attr("data-margin-left"));
 				if (indent < leastIndent) {
 					leastIndent = indent;
+					
 				}
+			   
 			}
 		}
 	);
-	if (leastIndent = 10000) {
+	if (leastIndent == 10000) {
 	    leastIndent = 0;
 	}
+	
 	flattenLists(node);
+	
     return leastIndent;
 
    }
@@ -489,13 +497,14 @@ function getBaselineIndentAndDataAtts(node) {
 	node.removeAttr("data-listType");
 	node.removeAttr("data-class");
 	node.removeAttr("data-type");
-	node.removeAttr("data-margin-left");
+    node.removeAttr("data-margin-left");
 	}
    
 
 
    function reformatChunk(node, container) {
     var leastIndent = getBaselineIndentAndDataAtts(node);
+    
 	var state = stateFactory(container, leastIndent);
     if (jQ(this).get(0).nodeName === 'TABLE') {
       state.setCurrentIndent(leastIndent);
@@ -507,13 +516,12 @@ function getBaselineIndentAndDataAtts(node) {
 	//Main formatting code 
 	
 	node.children().each(function (index) {
-	
+	    
 		var type = jQ(this).attr("data-type");
 		var margin = parseFloat(jQ(this).attr("data-margin-left"));
 		var listType = jQ(this).attr("data-listType");
 		var headingLevel = jQ(this).attr("data-headingLevel");
 		var classs = jQ(this).attr("data-class") ? jQ(this).attr("data-class") :  "";
-		
 		if (type === 'h') {
 			state.setCurrentIndent(leastIndent);
 			state.levelDown();
@@ -543,11 +551,10 @@ function getBaselineIndentAndDataAtts(node) {
 	
 		//Get rid of formatting now
 		getRidOfStyleAndClass(jQ(this));
-		("Margin" + margin);
-		state.levelDown(); //If we're embedded too far, fix that
 		
+		state.levelDown(); //If we're embedded too far, fix that
 		//TODO fix nestingNeeded the check for 'h' is a hack
-		if (type==="bib") {
+		if (type ==="bib") {
 			state.getCurrentContainer().append(jQ(this));
 			
 			if (!state.getCurrentContainer().filter("section[typeof='http://purl.org/orb/References']").length) {
@@ -557,10 +564,11 @@ function getBaselineIndentAndDataAtts(node) {
 		}
 		else if (!(type === "h") && state.nestingNeeded()) {
 			//Put this inside the previous para element - we're going deeper
+			
 			jQ(this).appendTo(state.getCurrentContainer());
 			
-			if (type == "li") {
-				if (listType == "b") {
+			if (type === "li") {
+				if (listType === "b") {
 					jQ(this).wrap("<ul><li></li></ul>");
 				}
 
@@ -589,6 +597,7 @@ function getBaselineIndentAndDataAtts(node) {
 			
 		}
 		else {//Indenting not needed
+		   
 			if (type == "li") {
 			    //If this container is all list then we may still need to indent
 			    jQ(this).appendTo(state.getCurrentContainer());
@@ -613,7 +622,7 @@ function getBaselineIndentAndDataAtts(node) {
 			else {
 			   
 				jQ(this).appendTo(state.getCurrentContainer());
-		
+		       
 				
 				if (type == "h") {
 					tag = "<h" + parseFloat(headingLevel) + " class=\"" + classs + "\">";
@@ -713,21 +722,18 @@ function removeHeaderAndFooter(doc) {
 	
 }
 
-
 //TODO move to general cleanup function
-function cleanUpSpansAndAtts(body) {
-        //Remove rubbish from body element
+function cleanUpSpansAndAtts(node) {
+        //Remove rubbish element
 	    var unwantedSpans = "span[class='SpellE'],span[lang^='EN'], span[class='GramE'], span[style], span[data], font";
         temp = jQ("<span></span>");
-	    body.find(unwantedSpans).each(function() {
+	    node.find(unwantedSpans).each(function() {
             jQ(this).append(temp);
             temp.unwrap();
             temp.remove();
         });
-        body.find("p[style], i[style], b[style]").each(function(){jQ(this).removeAttr("style");});
-	    body.find("v:shapetype, v:group").remove();
-        
-        
+        node.find("p[style], i[style], b[style]").each(function(){jQ(this).removeAttr("style");});
+	    node.find("v:shapetype, v:group").remove();
     }
 
 function convert() {
@@ -875,7 +881,7 @@ function convert() {
 	html.removeAttr("xmlns:o");
 	html.removeAttr("xmlns:w");
 	html.removeAttr("xmlns:m");
-        body = html.find("body");
+    body = html.find("body");
 	body.removeAttr("link");
 	body.removeAttr("vlink");
 	//jQ("head").html("");

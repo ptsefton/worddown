@@ -213,6 +213,16 @@ test("Check list tagging", function() {
 	
    });
  
+ test("deal with negative indent", function() {
+	var w2h = word2HML5Factory($);
+	var html = $("div#negative-indent-after-zero-indent-in").clone();
+	html = w2h.processparas(html);
+	 
+	var newHtml = $("div#negative-indent-after-zero-indent-out").clone();
+	
+	compareHtml(html[0], newHtml[0], "Dealt with negative indent");
+	
+   });
  test("Remove header and footer", function() {
 	var w2h = word2HML5Factory($);
 	var html  = $("div#remove-header-and-footer-in").clone();
@@ -680,6 +690,28 @@ bullets.</p><ul><li><p>
 		
 		
 		
+</div>
+<div id="negative-indent-after-zero-indent-in">
+
+<P STYLE="margin-top: 0.05cm; margin-bottom: 0.05cm; line-height: 0.53cm"><A NAME="style:Standard :::0"></A><A NAME="left-margin:0 :::0"></A>
+First para
+</P>
+
+<P STYLE="margin-left: -0.64cm; margin-top: 0.05cm; margin-bottom: 0.05cm; line-height: 0.53cm"><A NAME="style:Standard :::6"></A><A NAME="left-margin:-0.635 :::6"></A>
+<B>Other
+initiatives</B></P>
+</div>
+<div id="negative-indent-after-zero-indent-out">
+<article>
+<blockquote>
+<p>
+First para
+</p>
+</blockquote>
+<b>Other
+initiatives</b>
+</p>
+</article>
 </div>
 <div id="open-office-headings-in-lists-bug-in">
 <P LANG="en-US" CLASS="western" ALIGN=CENTER STYLE="margin-bottom: 0cm">
