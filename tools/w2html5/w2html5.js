@@ -563,8 +563,7 @@ function getBaselineIndentAndDataAtts(node) {
 			}
 		}
 		else if (!(type === "h") && state.nestingNeeded()) {
-			//Put this inside the previous para element - we're going deeper
-			
+			//Put this inside the previous para element - we're going deeper		
 			jQ(this).appendTo(state.getCurrentContainer());
 			
 			if (type === "li") {
@@ -588,7 +587,6 @@ function getBaselineIndentAndDataAtts(node) {
 				jQ(this).replaceWith(removeLineBreaks(jQ(this).html()));
 			}	
 			else {
-			
 				jQ(this).wrap("<blockquote></blockquote>");
 				state.pushState(jQ(this).parent());				 
 			}
@@ -599,9 +597,9 @@ function getBaselineIndentAndDataAtts(node) {
 		else {//Indenting not needed
 		   
 			if (type == "li") {
-			    //If this container is all list then we may still need to indent
+			    //If this container is al list then we may still need to indent
 			    jQ(this).appendTo(state.getCurrentContainer());
-				if (false && !state.getCurrentContainer()) {
+				if (!jQ(this).parents("ul").length) {
 					if (listType == "b") {
 					jQ(this).wrap("<ul><li></li></ul>");
 					}
