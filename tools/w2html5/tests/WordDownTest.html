@@ -5,7 +5,7 @@
   <title>WordDown Tests</title>
   <link rel="stylesheet" href="/resources/qunit-1.11.0.css">
 </head>
-<body>
+<body>mal
   <div id="qunit"></div>
   <div id="qunit-fixture"></div>
   <script src="/resources/qunit-1.11.0.js"></script>
@@ -19,11 +19,13 @@ function toHtml(node) {
   }
 
 function compareHtml(actual, expected, testName) {
+  //Supposed to be a proper DOM comparison
   var areEqual = actual.isEqualNode(expected);
   if (areEqual) {
  	ok(areEqual, testName);
   }
   else {
+    //Show difference as string
 	equal(toHtml(actual),toHtml(expected),testName);
   }
 
@@ -241,7 +243,7 @@ test("Check list tagging", function() {
 	 
 	var newHtml = $("div#open-office-headings-in-lists-bug-out").clone();
 	
-	compareHtml(html[0], newHtml[0], "Found a title");
+	compareHtml(html[0], newHtml[0], "Deal with borked OpenOffice markup with meadings in lists");
 	
    });
    
@@ -280,17 +282,7 @@ test("Check list tagging", function() {
 
 </div>
 
-<div id="heading-between-lists-out">
-
-<ul>
-<li><p>Met with Communications working
-	group and created action items for the group</p></li>
-</ul>
-<h1>Tasks Completed This Week</h1>
-<ul>
-<li><p>Alpha version of “Of the web”
-	code</p></li>
-</ul>
+<div id="heading-between-lists-out"><article><ul><li><p>Met with Communications working group and created action items for the group</p></li></ul><section><h2 class="">Tasks Completed This Week</h1><ul><li><p>Alpha version of “Of the web” code</p></li></ul></section></article>
 </div>
 <div id="heading-between-p-in">
 <p lang="en-AU" class="western" style="margin-left: 0.04cm; text-indent: -0.02cm; margin-bottom: 0.35cm">
@@ -318,38 +310,34 @@ exhaustive.</span></p></section></article>
 
 
 <div id="list-bug-heading-between-p-in">
-<p lang="en-AU" class="western" style="margin-left: 0.04cm; text-indent: -0.02cm; margin-bottom: 0.35cm">
-<span lang="en-US">Additionally, your Institute or School may have
-purchased software specific to your domain.</span></p>
-
+<p>Additionally, your Institute or School may have
+purchased software specific to your domain.</p>
 <ol>
 	<ol start="2">
-		<li><h2 lang="en-AU" class="western"><span lang="en-US">Analytical
-		Tools</span></h2>
+		<li><h2>Analytical
+		Tools</h2>
 	</li></ol>
 </ol>
-<p lang="en-AU" class="western" style="margin-left: 0.04cm; text-indent: -0.02cm; margin-bottom: 0.35cm">
-<span lang="en-US">For those who are in the know about research
+<p>For those who are in the know about research
 software, the list below will give you a sense of the range of
 applications that people have used at UWS. This list is by no means
-exhaustive.</span></p>
+exhaustive.</p>
 </div>
 
-<div id="list-bug-heading-between-p-out"><article><p class="western" lang="en-AU">
-<span lang="en-US">Additionally, your Institute or School may have
-purchased software specific to your domain.</span></p><h2 class="western" lang="en-AU"><span lang="en-US">Analytical
-		Tools</span></h2><p class="western" lang="en-AU">
-<span lang="en-US">For those who are in the know about research
+<div id="list-bug-heading-between-p-out">
+<p>Additionally, your Institute or School may have
+purchased software specific to your domain.</p>
+<h2 data-margin-left="0" data-headinglevel="3" data-class="" data-type="h">Analytical Tools</h2>
+<p>For those who are in the know about research
 software, the list below will give you a sense of the range of
 applications that people have used at UWS. This list is by no means
-exhaustive.</span></p></article>
+exhaustive.</p>
 </div>
 
 <div id="list-bug-heading-between-lists-in">
 
 <UL>
-<LI><P STYLE="margin-bottom: 0cm"><A NAME="style:List Paragraph :::18"></A><A NAME="left-margin:0.635 :::18"></A>
-	Met with Communications working group and created action items for
+<LI><P STYLE="margin-bottom: 0cm"><A NAME="style:List Paragraph :::18"></A><A NAME="left-margin:0.635 :::18"></A>Met with Communications working group and created action items for
 	the group</P>
 </UL>
 <OL START=2>
@@ -363,20 +351,7 @@ exhaustive.</span></p></article>
 
 </div>
 
-<div id="list-bug-heading-between-lists-out">
-<article>
-<ul>
-<li><p>Met with Communications working
-	group and created action items for the group</p></li>
-</ul>
-<section>
-<h2 class="Heading 1"> Tasks Completed This Week</h2>
-<ul>
-<li><p> Alpha version of “Of the web”
-	code</p></li>
-</ul>
-</section>
-</aricle>
+<div id="list-bug-heading-between-lists-out"><article><ul><li><p>Met with Communications working group and created action items for the group</p></li></ul><section><h2 class="Heading 1"> Tasks Completed This Week</h2><ul><li><p> Alpha version of “Of the web” code</p></li></ul></section></article>
 </div>
 
 
@@ -670,25 +645,20 @@ bullets.</p><ul><li><p>
 	
 	
 </div>
-<div id="open-office-format-lists-out"><article></article>
-
-	<ol type="1"><li><p class="List Paragraph" lang="en-AU">
-	<b>Outreach, change management and training to promote eResearch</b>:</p><ol type="1"><li><p class="List Paragraph" lang="en-AU">
+<div id="open-office-format-lists-out"><article><ol type="1"><li><p lang="en-AU">
+	<b>Outreach, change management and training to promote eResearch</b>:</p><ol type="1"><li><p lang="en-AU">
 		Systematic development and deployment of professional development
 		programs across the university, for example training in eResearch
 		methods for Higher Degree by Research Students (HDRS) and their
-		supervisors.</p></li><li><p class="List Paragraph" lang="en-AU">
+		supervisors.</p></li><li><p lang="en-AU">
 		Coordination of technology user groups, seminars, workshops and
-		interest groups to drive eResearch practices. This could include:</p><ol type="i"><li><p class="List Paragraph" lang="en-AU">
-			Research computing user group.</p></li><li><p class="List Paragraph" lang="en-AU">
-			Reproducible research practitioners network.</p></li><li><p class="List Paragraph" lang="en-AU">
-			Digital humanities interest group.</p></li></ol></li><li><p class="List Paragraph" lang="en-AU">
-		Communications via university channels</p></li><li><p class="List Paragraph" lang="en-AU">
+		interest groups to drive eResearch practices. This could include:</p><ol type="i"><li><p lang="en-AU">
+			Research computing user group.</p></li><li><p lang="en-AU">
+			Reproducible research practitioners network.</p></li><li><p lang="en-AU">
+			Digital humanities interest group.</p></li></ol></li><li><p lang="en-AU">
+		Communications via university channels</p></li><li><p lang="en-AU">
 		Evangelising eResearch, as services delivered by projects come
-		on-line.</p></li></ol></li></ol>
-	
-		
-		
+		on-line.</p></li></ol></li></ol></article>	
 		
 </div>
 <div id="negative-indent-after-zero-indent-in">
@@ -701,51 +671,44 @@ First para
 <B>Other
 initiatives</B></P>
 </div>
-<div id="negative-indent-after-zero-indent-out">
-<article>
-<blockquote>
-<p>
-First para
-</p>
-</blockquote>
+<div id="negative-indent-after-zero-indent-out"><article><blockquote><p>
+First para </p></blockquote><p>
 <b>Other
-initiatives</b>
-</p>
-</article>
+initiatives</b></p></article>
 </div>
 <div id="open-office-headings-in-lists-bug-in">
-<P LANG="en-US" CLASS="western" ALIGN=CENTER STYLE="margin-bottom: 0cm">
-2 Macquarie University, Sydney, Australia, <FONT COLOR="#0000ff"><SPAN LANG="en-US"><U><A HREF="mailto:steve.cassidy@mq.edu.au">steve.cassidy@mq.edu.au</A></U></SPAN></FONT></P>
-<P LANG="en-US" CLASS="western" STYLE="margin-bottom: 0cm"><BR>
+<P STYLE="margin-bottom: 0cm">
+2 Macquarie University, Sydney, Australia, <U><A HREF="mailto:steve.cassidy@mq.edu.au">steve.cassidy@mq.edu.au</A></U></P>
+<P STYLE="margin-bottom: 0cm"><BR>
 </P>
 <OL>
 	<OL>
 		<OL>
-			<LI><H3 LANG="en-US" CLASS="western" STYLE="margin-top: 0cm; margin-bottom: 0cm">
+			<LI><H3>
 			The <I>HCS vLab</I></H3>
 		</OL>
 	</OL>
 </OL>
-<P LANG="en-US" CLASS="western" STYLE="margin-bottom: 0cm">Administered
+<P STYLE="margin-bottom: 0cm">Administered
 by MARCS Institute at the University of Western Sydney, and in
 partnership with Intersect, Macquarie University, the Australian
 National University, University of Canberra, Flinders University,
 University of Melbourne, University of Sydney, University of
 Tasmania, University of New South Wales, University of Western
 Australia, RMIT, University of New England, LaTrobe University, NICTA
-<FONT COLOR="#000000">(</FONT>National ICT Australia, <FONT COLOR="#000000">ASSTA
+(National ICT Australia, ASSTA
 (Australasian Speech Science and Technology Association), AusNC
-(Australian National Corpus), </FONT>the Human Communication Science
-Virtual Laboratory <I>HCS vLab</I> project [<FONT COLOR="#0000ff"><SPAN LANG="en-US"><U><A HREF="#_ENREF_1">1</A></U></SPAN></FONT>]
+(Australian National Corpus), the Human Communication Science
+Virtual Laboratory <I>HCS vLab</I> project [<U><A HREF="#_ENREF_1">1</A></U>]
 started in December 2012 and is expected to be completed and
 operational by January 2014. The <I>HCS VLab</I> builds upon
 collaborations set up during the very successful ARC (Australian
-Research Council)-funded HCS Network project[<FONT COLOR="#0000ff"><SPAN LANG="en-US"><U><A HREF="#_ENREF_2">2</A></U></SPAN></FONT>];
+Research Council)-funded HCS Network project[<U><A HREF="#_ENREF_2">2</A></U>];
 it is the first time such a project has been conducted in Australia
 and will benefit researchers from myriad disciplines encompassed by
 Human Communication Science (HCS). 
 </P>
 </div>
-<div id="open-office-headings-in-lists-bug-out"><article><p class="western" lang="en-US"> 2 Macquarie University, Sydney, Australia, <font color="#0000ff"><span lang="en-US"><u><a href="mailto:steve.cassidy@mq.edu.au">steve.cassidy@mq.edu.au</a></u></span></font></p><p class="western" lang="en-US"><br> </p><h3 class="western" lang="en-US"> The <i>HCS vLab</i></h3><p class="western" lang="en-US">Administered by MARCS Institute at the University of Western Sydney, and in partnership with Intersect, Macquarie University, the Australian National University, University of Canberra, Flinders University, University of Melbourne, University of Sydney, University of Tasmania, University of New South Wales, University of Western Australia, RMIT, University of New England, LaTrobe University, NICTA <font color="#000000">(</font>National ICT Australia, <font color="#000000">ASSTA (Australasian Speech Science and Technology Association), AusNC (Australian National Corpus), </font>the Human Communication Science Virtual Laboratory <i>HCS vLab</i> project [<font color="#0000ff"><span lang="en-US"><u><a href="#_ENREF_1">1</a></u></span></font>] started in December 2012 and is expected to be completed and operational by January 2014. The <i>HCS VLab</i> builds upon collaborations set up during the very successful ARC (Australian Research Council)-funded HCS Network project[<font color="#0000ff"><span lang="en-US"><u><a href="#_ENREF_2">2</a></u></span></font>]; it is the first time such a project has been conducted in Australia and will benefit researchers from myriad disciplines encompassed by Human Communication Science (HCS). </p></article> 
+<div id="open-office-headings-in-lists-bug-out"><article><p> 2 Macquarie University, Sydney, Australia, <u><a href="mailto:steve.cassidy@mq.edu.au">steve.cassidy@mq.edu.au</a></u></p><p><br> </p><section><h4 class=""> The <i>HCS vLab</i></h3><p>Administered by MARCS Institute at the University of Western Sydney, and in partnership with Intersect, Macquarie University, the Australian National University, University of Canberra, Flinders University, University of Melbourne, University of Sydney, University of Tasmania, University of New South Wales, University of Western Australia, RMIT, University of New England, LaTrobe University, NICTA (National ICT Australia, ASSTA (Australasian Speech Science and Technology Association), AusNC (Australian National Corpus), the Human Communication Science Virtual Laboratory <i>HCS vLab</i> project [<u><a href="#_ENREF_1">1</a></u>] started in December 2012 and is expected to be completed and operational by January 2014. The <i>HCS VLab</i> builds upon collaborations set up during the very successful ARC (Australian Research Council)-funded HCS Network project[<u><a href="#_ENREF_2">2</a></u>]; it is the first time such a project has been conducted in Australia and will benefit researchers from myriad disciplines encompassed by Human Communication Science (HCS). </p></section></article> 
 </div>
 </html>
