@@ -597,8 +597,9 @@ function getBaselineIndentAndDataAtts(node) {
 		else {//Indenting not needed
 		   
 			if (type == "li") {
-			    //If this container is al list then we may still need to indent
+			     
 			    jQ(this).appendTo(state.getCurrentContainer());
+			    //We may still need to add a list container if left margin didn't cause it to happen above
 				if (!jQ(this).parents("ul,ol").length) {
 					if (listType == "b") {
 					jQ(this).wrap("<ul><li></li></ul>");

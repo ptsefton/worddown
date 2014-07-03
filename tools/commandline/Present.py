@@ -28,7 +28,7 @@ def createSlides(dest):
                 #Beautiful soup parser has trouble closing headings 
                 # putting in paragraphs forces it to close them
                 raw = raw.replace(u"<h", u"<p></p><h")
-                raw = raw.replace(u"<body>", u"<body><section  typeof='http://purl.org/ontology/bibo/Slide'><object data='img%s.jpg'>" 
+                raw = raw.                                                                                  replace(u"<body>", u"<body><section  typeof='http://purl.org/ontology/bibo/Slide'><object data='img%s.jpg'>" 
                                   % str(num))
                 raw = raw.replace(u"</body>", u"</details></section></body>")
                 raw = raw.replace(u"<h3>Notes:</h3>", u"</object><details open='open'>")       
@@ -52,10 +52,10 @@ def createSlides(dest):
     return slides
 
 def convert(path, dest, destDir):
-    tempFile = os.path.join(destDir, "temp.html")
-    command = ["unoconv","-v", "-f", "html", "-e","IsExportNotes=True", "-o", tempFile, path]   
+    #tempdir  = os.path.join(destDir, "temp")
+    command = ["unoconv","-v", "-f", "html", "-e","IsExportNotes=True", "-o", destDir, path]   
     result = subprocess.call(command)
-    os.remove(tempFile)
+    #os.remove(tempFile)
     codecs.open(dest,'w', 'utf-8').write(createSlides(destDir))
     return result
 
