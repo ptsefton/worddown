@@ -10,7 +10,10 @@ import os.path
 import base64
 import urllib
 import tempfile
+tempfile.tempdir = "/tmp"
 import shutil
+import os
+import stat
 from bs4 import BeautifulSoup
 from com.sun.star.beans import PropertyValue
 from com.sun.star.uno import Exception as UnoException
@@ -35,6 +38,7 @@ def convert(path, dest, wordDown, dataURIs, epub):
    
                 
     tempDir = tempfile.mkdtemp()
+    os.chmod(tempDir, 0o2770) #Sets group permissions and "sticky bit"
     ctxLocal = uno.getComponentContext()
     smgrLocal = ctxLocal.ServiceManager
 
@@ -115,8 +119,7 @@ def convert(path, dest, wordDown, dataURIs, epub):
         if wordDown:
                 myPath, myFile  = os.path.split(os.path.abspath(__file__))
                 command = ["phantomjs",os.path.join(myPath, "render.js"), systemPathToFileUrl(dest), dest]      
-                subprocess.call(command)
-
+                subprocess.call(command, shell=False)
        
         if epub:
                 epubDest = os.path.join(destDir, filestem + ".epub")
@@ -145,6 +148,7 @@ def convert(path, dest, wordDown, dataURIs, epub):
 
     except IOException, e:
           sys.stderr.write( "Error during conversion: " + e.Message + "\n" )
+	  sys.stderr.write( "Error during conversion: " + str(IOException)  + "\n" )
           retVal = 1
     except UnoException, e:
           sys.stderr.write( "Error ("+repr(e.__class__)+") during conversion:" + e.Message + "\n" )
