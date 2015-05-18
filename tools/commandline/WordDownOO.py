@@ -53,106 +53,110 @@ def convert(path, dest, wordDown, dataURIs, epub):
      
     inProps = PropertyValue( "Hidden" , 0 , True, 0 ),
 
-    try:
+    #try:
         #Open initial document
-        fileUrl = systemPathToFileUrl(path)
-        doc = desktop.loadComponentFromURL( fileUrl , "_blank", 0, inProps )
-        if not doc:
-            raise UnoException( "Couldn't open stream for unknown reason", None )	
+    fileUrl = path #"file://" + os.path.abspath(path)
+    print "XXXXXXXXXX", fileUrl
+    doc = desktop.loadComponentFromURL(fileUrl , "_blank", 0, inProps )
+    if not doc:
+        raise UnoException( "Couldn't open stream for unknown reason", None )	
 
-        #Write an ODT copy  to temp and copy out later		
-        tempOdtDest = os.path.join(tempDir, filestem + "_new.odt")
+    #Write an ODT copy  to temp and copy out later		
+    tempOdtDest = os.path.join(tempDir, filestem + "_new.odt")
 
-              
-        destUrl = systemPathToFileUrl(tempOdtDest)
-                
-        #Save as ODT
-        filterName = "writer8"
-        extension  = "odt"
-                
-        outProps = (
-                   PropertyValue( "FilterName" , 0, filterName , 0 ),
-                   PropertyValue( "Overwrite" , 0, True , 0 ),
-                   PropertyValue( "OutputStream", 0, OutputStream(), 0)
-                )
-        doc.storeToURL(destUrl, outProps)
-        doc.close(True)
-                
 
-        #Pre-process the ODT file
-        odt = zipfile.ZipFile(tempOdtDest, "a")
-        RemoveExtraImages(odt)
- 
-  
-        bookmarker = Bookmarker(odt)
+    destUrl = tempOdtDest #systemPathToFileUrl(tempOdtDest)
 
+    #Save as ODT
+    filterName = "writer8"
+    extension  = "odt"
+
+    outProps = (
+               PropertyValue( "FilterName" , 0, filterName , 0 ),
+               PropertyValue( "Overwrite" , 0, True , 0 ),
+               PropertyValue( "OutputStream", 0, OutputStream(), 0)
+            )
+    doc.storeToURL(destUrl, outProps)
+    doc.close(True)
+
+
+    #Pre-process the ODT file
+    odt = zipfile.ZipFile(tempOdtDest, "a")
+    RemoveExtraImages(odt)
+
+
+    bookmarker = Bookmarker(odt)
+
+
+    fileUrl = systemPathToFileUrl(tempOdtDest)
+    doc = desktop.loadComponentFromURL( fileUrl , "_blank", 0, inProps )
+    if not doc:
+            raise UnoException( "Couldn't open stream for unknown reason", None )
+
+
+
+
+    #Save as HTML
+    tempDest = os.path.join(tempDir, outFilename)
+    #else:
+    #    tempDest = os.path.join(tempDir, filestem + ".html")
+
+    destUrl = tempDest #systemPathToFileUrl(tempDest)
+    filterName = "HTML (StarWriter)"
+    #filtername = "writer_web_HTML_help"
+    extension  = "html"
+    outProps = (
+       PropertyValue( "FilterName" , 0, filterName , 0 ),
+       PropertyValue( "Overwrite" , 0, True , 0 ),
+       PropertyValue( "OutputStream", 0, OutputStream(), 0)
+    )
+    doc.storeToURL(destUrl, outProps)
+
+    src_files = os.listdir(tempDir)
+    for file_name in src_files:
+            full_file_name = os.path.join(tempDir, file_name)
+            if (os.path.isfile(full_file_name) and full_file_name <> tempOdtDest) and not file_name.startswith("~"):
+                shutil.copy(full_file_name, destDir)
+    if wordDown:
+            myPath, myFile  = os.path.split(os.path.abspath(__file__))
+            command = ["phantomjs",os.path.join(myPath, "render.js"), dest, dest]  
+            print command    
+            subprocess.call(command, shell=False)
+
+    if epub:
+            epubDest = os.path.join(destDir, filestem + ".epub")
+            command = ["ebook-convert", dest, epubDest]
+            subprocess.call(command)
+
+    def getData(match):
+            imgName = urllib.unquote(match.group(2))
+            imgPath = os.path.join(destDir,imgName)
+            imgData = base64.b64encode(open(imgPath).read())
+            os.remove(imgPath)
+            #TODO - proper mime type
+            mime, encoding = mimetypes.guess_type(imgPath)
+            return "%sdata:%s;base64,%s%s" % (match.group(1), mime, imgData, match.group(3))
+
+    if dataURIs:
+            try:
+                html = open(dest, "r").read()
+                html = re.sub('(<IMG.*?SRC=")(.*?)(".*?>)',getData, html,flags=re.IGNORECASE)
+                open(dest, "w").write(html)#.close()
+            except:
+                print "Could not create Data URIS ",  sys.exc_info()[0]
+
+
+    print "Saved: " + dest
+
+    ## except IOException, e:
+    ##       sys.stderr.write( "Error during conversion: " + e.Message + "\n" )
+	##   sys.stderr.write( "Error during conversion: " + str(IOException)  + "\n" )
+    ##       retVal = 1
+    ## except UnoException, e:
         
-        fileUrl = systemPathToFileUrl(tempOdtDest)
-        doc = desktop.loadComponentFromURL( fileUrl , "_blank", 0, inProps )
-        if not doc:
-                raise UnoException( "Couldn't open stream for unknown reason", None )
-        
-
-
-
-        #Save as HTML
-        tempDest = os.path.join(tempDir, outFilename)
-        #else:
-        #    tempDest = os.path.join(tempDir, filestem + ".html")
-        
-        destUrl = systemPathToFileUrl(tempDest)
-        filterName = "HTML (StarWriter)"
-        #filtername = "writer_web_HTML_help"
-        extension  = "html"
-        outProps = (
-           PropertyValue( "FilterName" , 0, filterName , 0 ),
-           PropertyValue( "Overwrite" , 0, True , 0 ),
-           PropertyValue( "OutputStream", 0, OutputStream(), 0)
-        )
-        doc.storeToURL(destUrl, outProps)
-       
-        src_files = os.listdir(tempDir)
-        for file_name in src_files:
-                full_file_name = os.path.join(tempDir, file_name)
-                if (os.path.isfile(full_file_name) and full_file_name <> tempOdtDest) and not file_name.startswith("~"):
-                    shutil.copy(full_file_name, destDir)
-        if wordDown:
-                myPath, myFile  = os.path.split(os.path.abspath(__file__))
-                command = ["phantomjs",os.path.join(myPath, "render.js"), systemPathToFileUrl(dest), dest]      
-                subprocess.call(command, shell=False)
-       
-        if epub:
-                epubDest = os.path.join(destDir, filestem + ".epub")
-                command = ["ebook-convert", dest, epubDest]
-                subprocess.call(command)
-
-        def getData(match):
-                imgName = urllib.unquote(match.group(2))
-                imgPath = os.path.join(destDir,imgName)
-                imgData = base64.b64encode(open(imgPath).read())
-                os.remove(imgPath)
-                #TODO - proper mime type
-                mime, encoding = mimetypes.guess_type(imgPath)
-                return "%sdata:%s;base64,%s%s" % (match.group(1), mime, imgData, match.group(3))
-
-        if dataURIs:
-                try:
-                    html = open(dest, "r").read()
-                    html = re.sub('(<IMG.*?SRC=")(.*?)(".*?>)',getData, html,flags=re.IGNORECASE)
-                    open(dest, "w").write(html)#.close()
-                except:
-                    print "Could not create Data URIS ",  sys.exc_info()[0]
-
-
-        print "Saved: " + dest
-
-    except IOException, e:
-          sys.stderr.write( "Error during conversion: " + e.Message + "\n" )
-	  sys.stderr.write( "Error during conversion: " + str(IOException)  + "\n" )
-          retVal = 1
-    except UnoException, e:
-          sys.stderr.write( "Error ("+repr(e.__class__)+") during conversion:" + e.Message + "\n" )
-          retVal = 1
+    ##       print sys.exc_traceback.tb_lineno 
+    ##       sys.stderr.write( "Error ("+repr(e.__class__)+") during conversion:" + e.Message + "\n" )
+    ##       retVal = 1
     if doc:
           doc.dispose()
 
@@ -184,11 +188,11 @@ def RemoveExtraImages(odfZip):
        openoffice adds extra images.
        
        TODO shift this to the javasscript part of the tool"""
-       
-    contentXml = etree.parse(odfZip.open("content.xml"))
-    contentRoot = contentXml.getroot()
-    removeFrames(contentRoot)
-    odfZip.writestr("content.xml",etree.tostring(contentRoot))
+     
+    #contentXml = etree.parse(odfZip.open("content.xml"))
+    #contentRoot = contentXml.getroot()
+    #removeFrames(contentRoot)
+    #odfZip.writestr("content.xml",etree.tostring(contentRoot))
     #odfZip.close()
 		
 
